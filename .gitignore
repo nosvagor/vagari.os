@@ -1,0 +1,51 @@
+# Nix
+result
+result-*
+.direnv
+.envrc
+
+# Nix build outputs
+/result
+/result-*
+
+# Nix store paths
+*.drv
+
+# Home Manager
+.home-manager*
+
+# Editor/IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# System
+.DS_Store
+Thumbs.db
+
+# Sensitive information
+/secrets/
+*.key
+*.pem
+*.env
+hardware-configuration.nix
+
+# Logs
+*.log
+.nixos-rebuild-*
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+
+# Cache directories
+.cache/
+__pycache__/
+.pytest_cache/
+
+# Local development
+/local/
+/dev/
+/temp/ 

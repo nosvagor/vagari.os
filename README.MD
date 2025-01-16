@@ -11,10 +11,10 @@ The goal is to move beyond traditional "dotfiles" and create an **entire** porta
 
 ```plaintext
 vagari.os/
-├── flake.nix # Main entry point
-├── machines/             # System configurations
-│   ├── shared/           # Shared system settings
-│   │   ├── core.nix      # Core (boot, hardware, services, users) settings
+├── flake.nix             # main entry point
+├── machines/             # system configurations
+│   ├── shared/           # shared system settings
+│   │   ├── core.nix      # core (boot, hardware, services, users) settings
 │   │   ├── fonts.nix
 │   │   └── packages/     # base packages, organized by purpose
 │   │   │   ├── base.nix
@@ -31,7 +31,7 @@ vagari.os/
     │   ├── browser.nix
     │   └── ...
     ├── abbot.nix         # AMD NUC home config
-    └── costello.nix      # Full Workstation home config
+    └── costello.nix      # full Workstation home config
 ```
 
 ## Core Software Stack
@@ -65,18 +65,11 @@ vagari.os/
 1. Install NixOS and clone this repo:
 
 ```bash
-git clone https://github.com/nosvagor/vagari.os.git
-cd vagari.os
+git clone https://github.com/nosvagor/vagari.os.git && cd vagari.os
 ```
 
 2. Build system configuration:
 
 ```bash
 sudo nixos-rebuild switch --flake .#machine-name
-```
-
-3. Build user configuration:
-
-```bash
-home-manager switch --flake .#nosvagor-machine-name
 ```

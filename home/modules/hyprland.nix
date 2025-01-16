@@ -63,7 +63,7 @@
       env = QT_QPA_PLATFORMTHEME,qt5ct
 
       # Core bindings
-      bind = SUPER, Return, exec, wezterm
+      bind = SUPER, Return, exec, ghostty
       bind = SUPER, Q, killactive,
       bind = SUPER SHIFT, Q, exit,
       bind = SUPER, V, togglefloating,

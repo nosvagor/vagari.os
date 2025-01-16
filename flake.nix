@@ -31,23 +31,26 @@
     nixosConfigurations = {
       "abbot" = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
-        modules = [ ./machines/abbot/configuration.nix ];
+        modules = [ 
+          ./machines/abbot/configuration.nix
+          home-manager.nixosModules.home-manager {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.nosvagor = import ./home/abbot.nix;
+          }
+        ];
       };
+
       "costello" = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
-        modules = [ ./machines/costello/configuration.nix ];
-      };
-    }; # -----------------------------------------------------------------------
-
-    # Home configurations for different machines/contexts ----------------------
-    homeConfigurations = {
-      "nosvagor-abbot" = home-manager.lib.homeManagerConfiguration {
-        pkgs = nixpkgs.legacyPackages.x86_64-linux;
-        modules = [ ./home/abbot.nix ];
-      };
-      "nosvagor-costello" = home-manager.lib.homeManagerConfiguration {
-        pkgs = nixpkgs.legacyPackages.x86_64-linux;
-        modules = [ ./home/costello.nix ];
+        modules = [ 
+          ./machines/costello/configuration.nix
+          home-manager.nixosModules.home-manager {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.nosvagor = import ./home/costello.nix;
+          }
+        ];
       };
     }; # -----------------------------------------------------------------------
 

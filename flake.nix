@@ -8,11 +8,10 @@
 # A flake is Nix's way of managing dependencies and making builds reproducible.
 
 {
-  # Simple description of your system. This is mostly for humans.
   description = "vagari.os - a personalized NixOS system";
 
-  # Inputs are external dependencies that your configuration uses.
-  inputs = {
+  # Inputs are external dependencies that your configuration uses. -----------------------------------------------------
+  inputs = { 
 
     # nixpkgs: The main source of packages and modules in Nix ecosystem 
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable"; # Using nixos-unstable for latest package versions
@@ -21,40 +20,37 @@
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs"; # Prevents dependency conflicts by using the same nixpkgs as above
-    };
+    }; 
 
-  };
+  }; # -----------------------------------------------------------------------------------------------------------------
 
-  # Outputs define what your flake provides to the system
-  outputs = { self, nixpkgs, home-manager, ... }: { # The parameters here are the inputs we defined above
-                                     # the ... syntax means it accepts any other arguments
+  # Outputs define what your flake provides to the system --------------------------------------------------------------
+  outputs = { self, nixpkgs, home-manager, ... }: { 
 
-    # homeConfigurations: Different home-manager configurations for different use cases
-    homeConfigurations = { # These can be activated using 'home-manager switch --flake .#<name>'
-
-      # Default user configuration starting point; used to build other configurations
-      "nosvagor-essentials" = home-manager.lib.homeManagerConfiguration {
-        # TODO: Define default configuration
+    # NixOS machine configurations ---------------------------------------------
+    nixosConfigurations = {
+      "abbot" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [ ./machines/abbot/configuration.nix ];
       };
-
-      # Specialized configuration for gaming
-      "nosvagor-game" = home-manager.lib.homeManagerConfiguration {
-        # TODO: Define game-specific configuration
+      "costello" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [ ./machines/costello/configuration.nix ];
       };
+    }; # -----------------------------------------------------------------------
 
-      # Development environment focused on building software
-      "nosvagor-build" = home-manager.lib.homeManagerConfiguration {
-        # TODO: Define build-specific configuration
+    # Home configurations for different machines/contexts ----------------------
+    homeConfigurations = {
+      "nosvagor-abbot" = home-manager.lib.homeManagerConfiguration {
+        pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        modules = [ ./home/abbot.nix ];
       };
-
-      # Primary endgame configuration
-      "nosvagor" = home-manager.lib.homeManagerConfiguration {
-        # TODO: Define full-featured configuration
+      "nosvagor-costello" = home-manager.lib.homeManagerConfiguration {
+        pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        modules = [ ./home/costello.nix ];
       };
+    }; # -----------------------------------------------------------------------
 
-    };
-
-
-  };
+  }; # -----------------------------------------------------------------------------------------------------------------
 
 } 

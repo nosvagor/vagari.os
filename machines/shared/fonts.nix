@@ -83,14 +83,6 @@
       dejavu_fonts        # Comprehensive coverage
       liberation_ttf      # Metric-compatible with MS fonts
       
-      # Stylistic & Handwritten
-      caveat              # Casual handwritten, very readable
-      dancing-script      # Elegant cursive
-      petit-formal-script # Formal handwritten
-      kalam               # Natural handwriting style
-      permanent-marker    # Bold marker style
-      pacifico            # Friendly script
-      indie-flower        # Casual handwritten
     ];
 
     # System-wide font defaults

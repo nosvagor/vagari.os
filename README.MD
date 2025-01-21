@@ -102,6 +102,7 @@ vagari.os/
 - Used primarily as status Bar
 - Custom widgets for anything else that is needed.
 
+<br>
 </details>
 
 <details open>
@@ -128,6 +129,7 @@ vagari.os/
 - LSP integration
 - Custom configuration
 
+<br>
 </details>
 
 <details>
@@ -157,6 +159,7 @@ vagari.os/
 - [`mtr`](https://github.com/traviscross/mtr): Modern traceroute
 - [`socat`](http://www.dest-unreach.org/socat/): Modern netcat
 
+<br>
 </details>
 
 <details>
@@ -180,6 +183,7 @@ vagari.os/
 - [Ardour](https://ardour.org/): Audio recording and editing
 - [Audacity](https://www.audacityteam.org/): Audio editing
 
+<br>
 </details>
 
 ## Setup & Installation
@@ -206,6 +210,7 @@ lsblk
 sudo dd if=nixos.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
+<br>
 </details>
 
 <details>
@@ -239,6 +244,7 @@ chmod +x install.sh
 # --help         Show this help message
 ```
 
+<br>
 </details>
 
 <details>
@@ -260,6 +266,7 @@ bw login
 bw get notes sops-keys > ~/.config/sops/age/vagari-os.txt
 ```
 
+<br>
 </details>
 
 ## Development Workflow
@@ -298,6 +305,7 @@ sudo nixos-rebuild switch --flake .#$(hostname) --show-trace
 sudo nixos-rebuild switch --flake .#$(hostname) --print-build-logs
 ```
 
+<br>
 </details>
 
 <details>
@@ -323,6 +331,7 @@ sudo nixos-rebuild build --flake .#$(hostname)
 sudo nixos-rebuild switch --flake .#$(hostname) --fast
 ```
 
+<br>
 </details>
 
 <details>
@@ -357,6 +366,7 @@ git checkout main
 git merge feature/wayland-setup
 ```
 
+<br>
 </details>
 
 <details>
@@ -393,4 +403,5 @@ nix flake update
 nix flake lock --update-input nixpkgs
 ```
 
+<br>
 </details>

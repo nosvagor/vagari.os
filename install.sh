@@ -81,10 +81,19 @@ setup_hardware_config() {
 install_system() {
     echo -e "${BLUE}Installing vagari.os...${NC}"
     
-    # Clone repo if not exists
+    # Clone repo and enter directory
     if [ ! -d "vagari.os" ]; then
         git clone https://github.com/nosvagor/vagari.os.git
-        cd vagari.os
+    fi
+    cd vagari.os
+    
+    # List available machines before setup
+    if [ "$AUTO_MODE" = false ]; then
+        echo -e "${BLUE}Available machines:${NC}"
+        ls -1 machines/ | grep -v "shared" || echo "No machines found"
+        
+        read -p "Enter hostname [$HOSTNAME]: " input
+        HOSTNAME=${input:-$HOSTNAME}
     fi
     
     # Setup hardware configuration
@@ -116,13 +125,7 @@ main() {
     done
     
     if [ "$AUTO_MODE" = false ]; then
-        # Interactive mode
-        echo -e "${BLUE}Available machines:${NC}"
-        ls -1 machines/ | grep -v "shared"
-        
-        read -p "Enter hostname [$HOSTNAME]: " input
-        HOSTNAME=${input:-$HOSTNAME}
-        
+        # Interactive mode - disk selection
         echo -e "${YELLOW}Available disks:${NC}"
         lsblk
         read -p "Enter disk to install to [${DISK}]: " input

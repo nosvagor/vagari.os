@@ -233,7 +233,7 @@ sudo mkdir -p /mnt
 
 # Get the installer
 nix-shell -p curl git
-curl -L https://raw.githubusercontent.com/nosvagor/vagari.os/main/install.sh -o install.sh
+curl -L https://raw.githubusercontent.com/nosvagor/vagari.os/master/install.sh -o install.sh
 chmod +x install.sh
 ```
 

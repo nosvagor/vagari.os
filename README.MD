@@ -188,7 +188,7 @@ vagari.os/
 
 ## Setup & Installation
 
-<details open>
+<details>
 <summary>💿 <b>Create Bootable USB</b></summary>
 <br>
 
@@ -213,7 +213,7 @@ sudo dd if=nixos.iso of=/dev/sdX bs=4M status=progress conv=fsync
 <br>
 </details>
 
-<details>
+<details open>
 <summary>🚀 <b>System Installation</b></summary>
 <br>
 

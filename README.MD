@@ -189,7 +189,7 @@ vagari.os/
 ## Setup & Installation
 
 <details>
-<summary>💿 <b>Create Bootable USB</b></summary>
+<summary>💿 <b>1. Create Bootable USB</b></summary>
 <br>
 
 **Download ISO**:
@@ -213,8 +213,8 @@ sudo dd if=nixos.iso of=/dev/sdX bs=4M status=progress conv=fsync
 <br>
 </details>
 
-<details open>
-<summary>🚀 <b>System Installation</b></summary>
+<details>
+<summary>🚀 <b>2. Initial Setup</b></summary>
 <br>
 
 **Network Setup**:
@@ -225,24 +225,36 @@ sudo nmtui
 ping -c 3 github.com
 ```
 
-**Run Installer**:
+**Prepare Installation**:
 
 ```bash
+# Create mount point
+sudo mkdir -p /mnt
+
 # Get the installer
 nix-shell -p curl git
 curl -L https://raw.githubusercontent.com/nosvagor/vagari.os/main/install.sh -o install.sh
 chmod +x install.sh
+```
 
-# Start installation
-./install.sh
+**Run Installer**:
 
-# "Options:"
+```bash
+sudo ./install.sh
+
+# Available options:
 # --auto         Run with defaults (non-interactive)
 # --hostname     Set hostname (default: abbot)
-# --disk         Specify disk to install to
+# --disk         Specify disk to install to (default: /dev/nvme0n1)
 # --username     Set username (default: nosvagor)
-# --help         Show this help message
 ```
+
+The installer will:
+
+1. Set up encrypted disk
+2. Generate hardware configuration
+3. Clone configuration repository
+4. Install NixOS with your configuration
 
 <br>
 </details>

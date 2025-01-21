@@ -71,7 +71,7 @@ setup_disk() {
         echo -e "\n${BOLD}Available disks:${NC}"
         lsblk
         exit 1
-    }
+    fi
     
     # Unmount all partitions from the disk
     print_substep "Checking for mounted partitions..."
@@ -141,25 +141,22 @@ setup_hardware_config() {
 install_system() {
     print_step "Installing vagari.os"
     
-    # Clone repo and enter directory
+    # First generate hardware config
+    setup_hardware_config "$HOSTNAME"
+    
+    # Then clone repo and enter directory
     print_substep "Cloning configuration repository..."
     if [ ! -d "vagari.os" ]; then
         git clone https://github.com/nosvagor/vagari.os.git
     fi
     cd vagari.os
     
-    # List available machines before setup
-    if [ "$AUTO_MODE" = false ]; then
-        echo -e "\n${BOLD}Available machines:${NC}"
-        ls -1 machines/ | grep -v "shared" || echo "No machines found"
-        
-        read -p "Enter hostname [$HOSTNAME]: " input
-        HOSTNAME=${input:-$HOSTNAME}
-        print_substep "Using hostname: ${BOLD}$HOSTNAME${NC}"
-    fi
+    # Create machine directory if needed
+    mkdir -p "machines/$HOSTNAME"
     
-    # Setup hardware configuration
-    setup_hardware_config "$HOSTNAME"
+    # Copy hardware config to repo
+    print_substep "Copying hardware configuration to repo..."
+    cp "/mnt/etc/nixos/hardware-configuration.nix" "machines/$HOSTNAME/"
     
     # Update configuration with UUID
     print_substep "Updating configuration with disk UUID..."

@@ -6,12 +6,13 @@ set -euo pipefail
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Default values
 HOSTNAME="abbot"
 AUTO_MODE=false
-DISK=""
+DISK="/dev/nvme0n1"
 USERNAME="nosvagor"
 
 print_header() {
@@ -51,23 +52,50 @@ setup_disk() {
     UUID=$(blkid -s UUID -o value "$disk")
 }
 
+setup_hardware_config() {
+    local machine=$1
+    echo -e "${BLUE}Setting up hardware configuration for ${machine}...${NC}"
+    
+    # Create machine directory if it doesn't exist
+    mkdir -p "machines/${machine}"
+    
+    # Generate hardware configuration
+    echo -e "${YELLOW}Generating hardware configuration...${NC}"
+    nixos-generate-config --root /mnt
+    
+    if [ ! -f "/mnt/etc/nixos/hardware-configuration.nix" ]; then
+        echo -e "${RED}Error: Failed to generate hardware configuration${NC}"
+        exit 1
+    }
+    
+    # Copy hardware configuration to machine directory
+    echo -e "${GREEN}Copying hardware configuration to machines/${machine}/...${NC}"
+    cp "/mnt/etc/nixos/hardware-configuration.nix" "machines/${machine}/"
+    
+    if [ ! -f "machines/${machine}/hardware-configuration.nix" ]; then
+        echo -e "${RED}Error: Failed to copy hardware configuration${NC}"
+        exit 1
+    }
+}
+
 install_system() {
     echo -e "${BLUE}Installing vagari.os...${NC}"
     
     # Clone repo if not exists
     if [ ! -d "vagari.os" ]; then
         git clone https://github.com/nosvagor/vagari.os.git
+        cd vagari.os
     fi
-    cd vagari.os
+    
+    # Setup hardware configuration
+    setup_hardware_config "$HOSTNAME"
     
     # Update configuration with UUID
+    echo -e "${YELLOW}Updating configuration with disk UUID...${NC}"
     sed -i "s/YOUR-UUID/$UUID/" "machines/$HOSTNAME/configuration.nix"
     
-    # Generate and copy hardware config
-    nixos-generate-config --root /mnt
-    cp /mnt/etc/nixos/hardware-configuration.nix "machines/$HOSTNAME/"
-    
     # Install
+    echo -e "${BLUE}Running NixOS installation...${NC}"
     nixos-install --flake ".#$HOSTNAME"
 }
 
@@ -89,17 +117,21 @@ main() {
     
     if [ "$AUTO_MODE" = false ]; then
         # Interactive mode
+        echo -e "${BLUE}Available machines:${NC}"
+        ls -1 machines/ | grep -v "shared"
+        
         read -p "Enter hostname [$HOSTNAME]: " input
         HOSTNAME=${input:-$HOSTNAME}
         
-        if [ -z "$DISK" ]; then
-            lsblk
-            read -p "Enter disk to install to (e.g., /dev/nvme0n1): " DISK
-        fi
+        echo -e "${YELLOW}Available disks:${NC}"
+        lsblk
+        read -p "Enter disk to install to [${DISK}]: " input
+        DISK=${input:-$DISK}
     else
-        # Auto mode needs disk specified
-        if [ -z "$DISK" ]; then
-            echo -e "${RED}Error: --disk required in auto mode${NC}"
+        # Auto mode validation
+        if [ ! -e "$DISK" ]; then
+            echo -e "${RED}Error: Default disk $DISK not found${NC}"
+            lsblk
             exit 1
         fi
     fi

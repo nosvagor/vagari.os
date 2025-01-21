@@ -66,7 +66,7 @@ setup_hardware_config() {
     if [ ! -f "/mnt/etc/nixos/hardware-configuration.nix" ]; then
         echo -e "${RED}Error: Failed to generate hardware configuration${NC}"
         exit 1
-    }
+    fi
     
     # Copy hardware configuration to machine directory
     echo -e "${GREEN}Copying hardware configuration to machines/${machine}/...${NC}"
@@ -75,7 +75,7 @@ setup_hardware_config() {
     if [ ! -f "machines/${machine}/hardware-configuration.nix" ]; then
         echo -e "${RED}Error: Failed to copy hardware configuration${NC}"
         exit 1
-    }
+    fi
 }
 
 install_system() {

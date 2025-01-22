@@ -113,11 +113,7 @@ setup_hardware_config() {
     local machine=$1
     print_step "Setting up hardware configuration for ${BOLD}$machine${NC}"
     
-    # Create machine directory if it doesn't exist
-    print_substep "Creating machine directory..."
-    mkdir -p "machines/${machine}"
-    
-    # Generate hardware configuration
+    # First generate hardware configuration
     print_substep "Generating hardware configuration..."
     nixos-generate-config --root /mnt
     
@@ -126,16 +122,7 @@ setup_hardware_config() {
         exit 1
     fi
     
-    # Copy hardware configuration to machine directory
-    print_substep "Copying hardware configuration..."
-    cp "/mnt/etc/nixos/hardware-configuration.nix" "machines/${machine}/"
-    
-    if [ ! -f "machines/${machine}/hardware-configuration.nix" ]; then
-        print_error "Failed to copy hardware configuration"
-        exit 1
-    fi
-    
-    print_success "Hardware configuration complete"
+    print_success "Hardware configuration generated"
 }
 
 install_system() {
@@ -151,15 +138,27 @@ install_system() {
     fi
     cd vagari.os
     
-    # Create machine directory if needed
+    # Ensure machine directory exists
+    print_substep "Setting up machine configuration..."
     mkdir -p "machines/$HOSTNAME"
     
-    # Copy hardware config to repo
-    print_substep "Copying hardware configuration to repo..."
+    # Copy the generated hardware config to our repo
+    print_substep "Copying hardware configuration..."
     cp "/mnt/etc/nixos/hardware-configuration.nix" "machines/$HOSTNAME/"
+    
+    if [ ! -f "machines/$HOSTNAME/hardware-configuration.nix" ]; then
+        print_error "Failed to copy hardware configuration"
+        ls -la "/mnt/etc/nixos/"
+        exit 1
+    fi
     
     # Update configuration with UUID
     print_substep "Updating configuration with disk UUID..."
+    if [ ! -f "machines/$HOSTNAME/configuration.nix" ]; then
+        print_error "Configuration file not found for $HOSTNAME"
+        exit 1
+    fi
+    
     sed -i "s/YOUR-UUID/$UUID/" "machines/$HOSTNAME/configuration.nix"
     
     # Install

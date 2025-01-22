@@ -186,7 +186,7 @@ vagari.os/
 <br>
 </details>
 
-## Setup & Installation
+## Quick Start
 
 <details>
 <summary>💿 <b>1. Create Bootable USB</b></summary>
@@ -214,32 +214,53 @@ sudo dd if=nixos.iso of=/dev/sdX bs=4M status=progress conv=fsync
 </details>
 
 <details>
-<summary>🚀 <b>2. Initial Setup</b></summary>
+<summary>🚀 <b>2. Installation Options</b></summary>
 <br>
 
-**Network Setup**:
+You have two options for installation:
+
+**Option A: Simple Two-Step Install (Recommended)**
+
+1. Basic NixOS Install:
 
 ```bash
-# Connect to WiFi & test connection
-sudo nmtui
-ping -c 3 github.com
+# Get root shell
+sudo -i
+
+# Create and mount partition
+mkfs.btrfs /dev/nvme0n1
+mount /dev/nvme0n1 /mnt
+
+# Generate and install basic NixOS
+nixos-generate-config --root /mnt
+nixos-install
 ```
 
-**Prepare Installation**:
+2. After reboot, apply your configuration:
 
 ```bash
-# Create mount point
-sudo mkdir -p /mnt
+# Clone your config
+git clone https://github.com/nosvagor/vagari.os.git
+cd vagari.os
 
+# Copy hardware config
+sudo cp /etc/nixos/hardware-configuration.nix machines/abbot/
+
+# Apply your configuration
+sudo nixos-rebuild switch --flake .#abbot
+```
+
+**Option B: Full Automated Install**
+
+For a more automated approach with disk encryption from the start:
+
+```bash
 # Get the installer
 nix-shell -p curl git
 curl -L https://raw.githubusercontent.com/nosvagor/vagari.os/master/install.sh -o install.sh
 chmod +x install.sh
-```
 
-**Run Installer**:
-
-```bash
+# Run installer
 sudo ./install.sh
 
 # Available options:
@@ -249,31 +270,28 @@ sudo ./install.sh
 # --username     Set username (default: nosvagor)
 ```
 
-The installer will:
-
-1. Set up encrypted disk
-2. Generate hardware configuration
-3. Clone configuration repository
-4. Install NixOS with your configuration
-
 <br>
 </details>
 
 <details>
-<summary>🔐 <b>Post-Install Setup</b></summary>
+<summary>🔐 <b>3. Post-Install Setup</b></summary>
 <br>
 
-**Apply Configuration**:
+**If you used Option A (Simple Install)**:
 
 ```bash
-# Apply your full system configuration
-sudo nixos-rebuild switch --flake .#$(hostname)
+# Set up disk encryption (optional)
+# Instructions for adding LUKS encryption will be here...
+
+# Set up secrets
+bw login
+bw get notes sops-keys > ~/.config/sops/age/vagari-os.txt
 ```
 
-**Setup Secrets**:
+**If you used Option B (Automated Install)**:
 
 ```bash
-# Set up secrets using Bitwarden (if using existing keys)
+# Just set up secrets
 bw login
 bw get notes sops-keys > ~/.config/sops/age/vagari-os.txt
 ```

@@ -31,7 +31,7 @@ print_header() {
     echo '  ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝    ╚═════╝ ╚══════╝'
     echo -e "${NC}"
     echo -e "${BOLD}Welcome to vagari.os Installation${NC}"
-    echo -e "${CYAN}A personalized NixOS configuration${NC}\n"
+    echo -e "${YELLOW}Version: 0.1.0${NC}\n"
 }
 
 print_step() {

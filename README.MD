@@ -228,12 +228,8 @@ vagari.os/
 <br>
 
 ```bash
-# Get the installer script
-curl -L https://raw.githubusercontent.com/nosvagor/vagari.os/main/install.sh -o install.sh
-chmod +x install.sh
-
-# Run installer (interactive mode)
-./install.sh
+# Download and run installer in one command
+sh <(curl -L https://raw.githubusercontent.com/nosvagor/vagari.os/master/install.sh)
 
 # Options                  (changes defaults in install.sh):
 # --hostname <hostname>    (default: abbot)
@@ -249,6 +245,7 @@ The script will:
 - Enable compression and other optimizations
 - Install base NixOS system
 
+<br>
 </details>
 
 <details>

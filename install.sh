@@ -31,7 +31,7 @@ print_header() {
     echo '  ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝    ╚═════╝ ╚══════╝'
     echo -e "${NC}"
     echo -e "${BOLD}Welcome to vagari.os Installation${NC}"
-    echo -e "${YELLOW}Version: 0.1.0${NC}\n"
+    echo -e "${YELLOW}Version: 0.1.1${NC}\n"
 }
 
 print_step() {
@@ -210,17 +210,60 @@ parted "$DISK" -- set 1 esp on || fail "Failed to set ESP flag"
 parted "$DISK" -- mkpart root 512MiB 100% || fail "Failed to create root partition"
 
 # Wait for partitions to be recognized
+print_substep "Waiting for partitions to be recognized..."
 sync
 sleep 2
 
-# Get partition names
-BOOT_PART="${DISK}1"
-ROOT_PART="${DISK}2"
-
-# Verify partitions exist
-if [ ! -e "$BOOT_PART" ] || [ ! -e "$ROOT_PART" ]; then
-    fail "Partitions not created properly"
+# Get partition names based on disk type
+if [[ "$DISK" == *"nvme"* ]]; then
+    # NVMe drives use 'p' for partition numbers (e.g., nvme0n1p1)
+    BOOT_PART="${DISK}p1"
+    ROOT_PART="${DISK}p2"
+else
+    # Regular drives just append numbers (e.g., sda1)
+    BOOT_PART="${DISK}1"
+    ROOT_PART="${DISK}2"
 fi
+
+print_substep "Using partitions:"
+print_substep "Boot: $BOOT_PART"
+print_substep "Root: $ROOT_PART"
+
+# Verify partitions with detailed feedback
+print_substep "Verifying partitions..."
+if [ ! -e "$BOOT_PART" ]; then
+    print_error "Boot partition ($BOOT_PART) not found"
+    print_warning "Current partition state:"
+    lsblk "$DISK"
+    fail "Failed to create boot partition"
+fi
+
+if [ ! -e "$ROOT_PART" ]; then
+    print_error "Root partition ($ROOT_PART) not found"
+    print_warning "Current partition state:"
+    lsblk "$DISK"
+    fail "Failed to create root partition"
+fi
+
+# Additional partition verification
+print_substep "Partition layout:"
+lsblk "$DISK" --output NAME,SIZE,TYPE,MOUNTPOINT
+
+# Maybe the disk needs more time to settle
+if [ ! -e "$BOOT_PART" ] || [ ! -e "$ROOT_PART" ]; then
+    print_warning "Partitions not immediately available, waiting longer..."
+    sleep 5
+    if [ ! -e "$BOOT_PART" ] || [ ! -e "$ROOT_PART" ]; then
+        print_error "Partitions still not available after waiting"
+        print_warning "You might need to:"
+        echo "1. Check if disk is in use: lsblk -f"
+        echo "2. Ensure no existing mounts: umount -R /mnt"
+        echo "3. Close any LUKS containers: cryptsetup close root"
+        fail "Partition creation failed"
+    fi
+fi
+
+print_success "Partitions created and verified"
 
 # 2. Setup encryption
 print_step "Setting up encryption"

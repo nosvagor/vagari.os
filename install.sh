@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+# Check if running as root
+[[ $EUID -ne 0 ]] && echo "This script must be run as root" && exit 1
 
 # Colors for output
 RED='\033[0;31m'
@@ -12,9 +13,8 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 # Default values
-HOSTNAME="abbot"
-AUTO_MODE=false
 DISK="/dev/nvme0n1"
+HOSTNAME="abbot"
 USERNAME="nosvagor"
 
 print_header() {
@@ -50,173 +50,154 @@ print_success() {
     echo -e "${GREEN}Success:${NC} $1"
 }
 
-usage() {
-    echo -e "\n${BOLD}Usage:${NC} $0 [OPTIONS]"
-    echo -e "\n${BOLD}Options:${NC}"
-    echo "  --auto         Run with defaults (non-interactive)"
-    echo "  --hostname     Set hostname (default: $HOSTNAME)"
-    echo "  --disk         Specify disk to install to (default: $DISK)"
-    echo "  --username     Set username (default: $USERNAME)"
-    echo "  --help         Show this help message"
-    echo
-}
+# Print header
+print_header
 
-setup_disk() {
-    local disk=$1
-    print_step "Setting up encrypted disk: ${BOLD}$disk${NC}"
-    
-    # Check if disk exists
-    if [ ! -e "$disk" ]; then
-        print_error "Disk $disk not found"
-        echo -e "\n${BOLD}Available disks:${NC}"
-        lsblk
-        exit 1
-    fi
-    
-    # Unmount all partitions from the disk
-    print_substep "Checking for mounted partitions..."
-    if mount | grep -q "$disk"; then
-        print_warning "Found mounted partitions, unmounting..."
-        sudo umount -l "${disk}"* 2>/dev/null || true
-        sleep 1
-        print_success "Partitions unmounted"
-    fi
-    
-    # Kill any processes using the disk
-    print_substep "Checking for processes using the disk..."
-    if sudo fuser -m "${disk}"* >/dev/null 2>&1; then
-        print_warning "Found processes using disk, terminating..."
-        sudo fuser -k "${disk}"*
-        sleep 1
-        print_success "Processes terminated"
-    fi
-    
-    # Create encrypted partition
-    print_substep "Creating encrypted partition..."
-    print_warning "You will be prompted for an encryption passphrase"
-    print_warning "Remember this passphrase - you'll need it to boot your system!"
-    cryptsetup luksFormat "$disk"
-    cryptsetup luksOpen "$disk" root
-    
-    # Format and mount
-    print_substep "Formatting with BTRFS..."
-    mkfs.btrfs /dev/mapper/root
-    print_substep "Mounting filesystem..."
-    mount /dev/mapper/root /mnt
-    
-    # Get UUID for configuration
-    UUID=$(blkid -s UUID -o value "$disk")
-    print_success "Disk setup complete"
-}
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --disk) 
+        DISK="$2"
+        print_substep "Using disk: ${BOLD}$DISK${NC}"
+        shift ;;
+    --hostname)
+        HOSTNAME="$2"
+        print_substep "Using hostname: ${BOLD}$HOSTNAME${NC}"
+        shift ;;
+    --username)
+        USERNAME="$2"
+        print_substep "Using username: ${BOLD}$USERNAME${NC}"
+        shift ;;
+    --help)
+        echo -e "\n${BOLD}Usage:${NC} $0 [OPTIONS]"
+        echo -e "\n${BOLD}Options:${NC}"
+        echo "  --hostname     Set hostname (default: $HOSTNAME)"
+        echo "  --disk        Specify disk to install to (default: $DISK)"
+        echo "  --username    Set username (default: $USERNAME)"
+        echo "  --help        Show this help message"
+        exit 0 ;;
+    *) print_error "Unknown parameter: $1"; exit 1 ;;
+  esac
+  shift
+done
 
-setup_hardware_config() {
-    local machine=$1
-    print_step "Setting up hardware configuration for ${BOLD}$machine${NC}"
-    
-    # First generate hardware configuration
-    print_substep "Generating hardware configuration..."
-    nixos-generate-config --root /mnt
-    
-    if [ ! -f "/mnt/etc/nixos/hardware-configuration.nix" ]; then
-        print_error "Failed to generate hardware configuration"
-        exit 1
-    fi
-    
-    print_success "Hardware configuration generated"
-}
+# Show available disks
+echo -e "\n${BOLD}Available disks:${NC}"
+lsblk
 
-install_system() {
-    print_step "Installing vagari.os"
-    
-    # First generate hardware config
-    setup_hardware_config "$HOSTNAME"
-    
-    # Then clone repo and enter directory
-    print_substep "Cloning configuration repository..."
-    if [ ! -d "vagari.os" ]; then
-        git clone https://github.com/nosvagor/vagari.os.git
-    fi
-    cd vagari.os
-    
-    # Ensure machine directory exists
-    print_substep "Setting up machine configuration..."
-    mkdir -p "machines/$HOSTNAME"
-    
-    # Copy the generated hardware config to our repo
-    print_substep "Copying hardware configuration..."
-    cp "/mnt/etc/nixos/hardware-configuration.nix" "machines/$HOSTNAME/"
-    
-    if [ ! -f "machines/$HOSTNAME/hardware-configuration.nix" ]; then
-        print_error "Failed to copy hardware configuration"
-        ls -la "/mnt/etc/nixos/"
-        exit 1
-    fi
-    
-    # Update configuration with UUID
-    print_substep "Updating configuration with disk UUID..."
-    if [ ! -f "machines/$HOSTNAME/configuration.nix" ]; then
-        print_error "Configuration file not found for $HOSTNAME"
-        exit 1
-    fi
-    
-    sed -i "s/YOUR-UUID/$UUID/" "machines/$HOSTNAME/configuration.nix"
-    
-    # Install
-    print_step "Running NixOS installation..."
-    nixos-install --flake ".#$HOSTNAME"
-}
+# Confirm with user
+print_warning "This will erase all data on $DISK"
+read -p "Continue? [y/N] " -n 1 -r
+echo
+[[ ! $REPLY =~ ^[Yy]$ ]] && exit 1
 
-main() {
-    print_header
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --auto) 
-                AUTO_MODE=true
-                print_warning "Running in automatic mode with defaults" ;;
-            --hostname)
-                HOSTNAME="$2"
-                print_substep "Using hostname: ${BOLD}$HOSTNAME${NC}"
-                shift ;;
-            --disk)
-                DISK="$2"
-                print_substep "Using disk: ${BOLD}$DISK${NC}"
-                shift ;;
-            --username)
-                USERNAME="$2"
-                print_substep "Using username: ${BOLD}$USERNAME${NC}"
-                shift ;;
-            --help) usage; exit 0 ;;
-            *) print_error "Unknown option: $1"; usage; exit 1 ;;
-        esac
-        shift
-    done
-    
-    if [ "$AUTO_MODE" = false ]; then
-        # Interactive mode - disk selection
-        echo -e "\n${BOLD}Available disks:${NC}"
-        lsblk
-        read -p "Enter disk to install to [${DISK}]: " input
-        DISK=${input:-$DISK}
-        print_substep "Selected disk: ${BOLD}$DISK${NC}"
-    else
-        # Auto mode validation
-        if [ ! -e "$DISK" ]; then
-            print_error "Default disk $DISK not found"
-            echo -e "\n${BOLD}Available disks:${NC}"
-            lsblk
-            exit 1
-        fi
-    fi
-    
-    setup_disk "$DISK"
-    install_system
-    
-    print_success "Installation complete!"
-    echo -e "\n${BOLD}Next steps:${NC}"
-    echo "1. Reboot your system"
-    echo "2. Run: sudo nixos-rebuild switch --flake .#$HOSTNAME"
-}
+# 1. Partition disk
+print_step "Partitioning disk"
+print_substep "Creating partition table"
+parted "$DISK" -- mklabel gpt
+parted "$DISK" -- mkpart ESP fat32 1MB 512MB
+parted "$DISK" -- set 1 esp on
+parted "$DISK" -- mkpart root 512MB 100%
 
-main "$@" 
+# 2. Setup encryption
+print_step "Setting up encryption"
+print_warning "You will be prompted for an encryption passphrase"
+print_warning "Remember this passphrase - you'll need it to boot your system!"
+cryptsetup luksFormat "${DISK}2"
+cryptsetup luksOpen "${DISK}2" root
+
+# 3. Format partitions
+print_step "Formatting partitions"
+print_substep "Formatting boot partition"
+mkfs.fat -F 32 -n boot "${DISK}1"
+print_substep "Formatting root partition with BTRFS"
+mkfs.btrfs /dev/mapper/root
+
+# 4. Create BTRFS subvolumes
+print_step "Creating BTRFS subvolumes"
+mount /dev/mapper/root /mnt
+btrfs subvolume create /mnt/@
+btrfs subvolume create /mnt/@home
+btrfs subvolume create /mnt/@nix
+btrfs subvolume create /mnt/@snapshots
+umount /mnt
+
+# 5. Mount subvolumes
+print_step "Mounting subvolumes"
+mount -o subvol=@,compress=zstd,noatime /dev/mapper/root /mnt
+mkdir -p /mnt/{home,nix,.snapshots,boot}
+mount -o subvol=@home,compress=zstd,noatime /dev/mapper/root /mnt/home
+mount -o subvol=@nix,compress=zstd,noatime /dev/mapper/root /mnt/nix
+mount -o subvol=@snapshots,compress=zstd,noatime /dev/mapper/root /mnt/.snapshots
+mount /dev/disk/by-label/boot /mnt/boot
+
+# 6. Generate hardware config
+print_step "Generating hardware configuration"
+nixos-generate-config --root /mnt
+
+# Get LUKS UUID for configuration
+ROOT_UUID=$(blkid -s UUID -o value "${DISK}2")
+
+# 7. Create basic configuration
+print_step "Creating NixOS configuration"
+cat > /mnt/etc/nixos/configuration.nix << EOF
+{ config, pkgs, ... }:
+{
+  imports = [ ./hardware-configuration.nix ];
+
+  # Boot configuration
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+
+  # Encryption setup
+  boot.initrd.luks.devices = {
+    root = {
+      device = "/dev/disk/by-uuid/${ROOT_UUID}";
+      preLVM = true;
+    };
+  };
+
+  # File systems
+  fileSystems = {
+    "/" = {
+      device = "/dev/mapper/root";
+      fsType = "btrfs";
+      options = [ "subvol=@" "compress=zstd" "noatime" ];
+    };
+    "/home" = {
+      device = "/dev/mapper/root";
+      fsType = "btrfs";
+      options = [ "subvol=@home" "compress=zstd" "noatime" ];
+    };
+    "/nix" = {
+      device = "/dev/mapper/root";
+      fsType = "btrfs";
+      options = [ "subvol=@nix" "compress=zstd" "noatime" ];
+    };
+    "/.snapshots" = {
+      device = "/dev/mapper/root";
+      fsType = "btrfs";
+      options = [ "subvol=@snapshots" "compress=zstd" "noatime" ];
+    };
+  };
+
+  networking.hostName = "$HOSTNAME";
+  
+  users.users.$USERNAME = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "networkmanager" ];
+  };
+
+  system.stateVersion = "23.11";
+}
+EOF
+
+# 8. Install NixOS
+print_step "Installing NixOS"
+nixos-install --root /mnt
+
+print_success "Installation complete!"
+echo -e "\n${BOLD}Next steps:${NC}"
+echo "1. Reboot your system"
+echo "2. Log in as $USERNAME"
+echo "3. Clone your vagari.os repo and rebuild" 

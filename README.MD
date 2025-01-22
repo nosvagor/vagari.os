@@ -186,117 +186,87 @@ vagari.os/
 <br>
 </details>
 
-## Quick Start
+## Installation
 
 <details>
-<summary>💿 <b>1. Create Bootable USB</b></summary>
+<summary>💿 <b>1. Boot NixOS Installer</b></summary>
 <br>
 
-**Download ISO**:
+1. Download the [NixOS minimal ISO](https://nixos.org/download.html)
 
-```bash
-curl -L \
-https://channels.nixos.org/nixos-23.11/latest-nixos-minimal-x86_64-linux.iso \
--o nixos.iso
-```
+   ```bash
+   # Download latest minimal ISO
+   curl -L -O https://channels.nixos.org/nixos-23.11/latest-nixos-minimal-x86_64-linux.iso
+   ```
 
-**Prepare USB**:
+2. Create bootable USB:
 
-```bash
-# Identify your USB drive
-lsblk
+   ```bash
+   # List available drives
+   lsblk
 
-# Write ISO (replace sdX with your drive, e.g., sdb)
-sudo dd if=nixos.iso of=/dev/sdX bs=4M status=progress conv=fsync
-```
+   # Write ISO to USB drive (replace sdX with your USB drive)
+   sudo dd if=nixos-minimal.iso of=/dev/sdX bs=4M status=progress
+   ```
 
-<br>
+3. Boot from USB and connect to internet if needed:
+   ```bash
+   # For WiFi
+   sudo systemctl start wpa_supplicant
+   wpa_cli
+   > add_network
+   > set_network 0 ssid "your_ssid"
+   > set_network 0 psk "your_password"
+   > enable_network 0
+   > quit
+   ```
+
 </details>
 
 <details>
-<summary>🚀 <b>2. Installation Options</b></summary>
+<summary>🚀 <b>2. Run Installation</b></summary>
 <br>
 
-You have two options for installation:
-
-**Option A: Simple Two-Step Install (Recommended)**
-
-1. Basic NixOS Install:
-
 ```bash
-# Get root shell
-sudo -i
-
-# Create and mount partition
-mkfs.btrfs /dev/nvme0n1
-mount /dev/nvme0n1 /mnt
-
-# Generate and install basic NixOS
-nixos-generate-config --root /mnt
-nixos-install
-```
-
-2. After reboot, apply your configuration:
-
-```bash
-# Clone your config
-git clone https://github.com/nosvagor/vagari.os.git
-cd vagari.os
-
-# Copy hardware config
-sudo cp /etc/nixos/hardware-configuration.nix machines/abbot/
-
-# Apply your configuration
-sudo nixos-rebuild switch --flake .#abbot
-```
-
-**Option B: Full Automated Install**
-
-For a more automated approach with disk encryption from the start:
-
-```bash
-# Get the installer
-nix-shell -p curl git
-curl -L https://raw.githubusercontent.com/nosvagor/vagari.os/master/install.sh -o install.sh
+# Get the installer script
+curl -L https://raw.githubusercontent.com/nosvagor/vagari.os/main/install.sh -o install.sh
 chmod +x install.sh
 
-# Run installer
-sudo ./install.sh
+# Run installer (interactive mode)
+./install.sh
 
-# Available options:
-# --auto         Run with defaults (non-interactive)
-# --hostname     Set hostname (default: abbot)
-# --disk         Specify disk to install to (default: /dev/nvme0n1)
-# --username     Set username (default: nosvagor)
+# Options                  (changes defaults in install.sh):
+# --hostname <hostname>    (default: abbot)
+# --disk <disk>            (default: /dev/nvme0n1)
+# --username <username>    (default: nosvagor)
+# --help
 ```
 
-<br>
+The script will:
+
+- Set up LUKS encryption (you'll be prompted for a passphrase)
+- Create BTRFS filesystem with subvolumes (@, @home, @nix, @snapshots)
+- Enable compression and other optimizations
+- Install base NixOS system
+
 </details>
 
 <details>
 <summary>🔐 <b>3. Post-Install Setup</b></summary>
 <br>
 
-**If you used Option A (Simple Install)**:
+After installation and first boot:
 
 ```bash
-# Set up disk encryption (optional)
-# Instructions for adding LUKS encryption will be here...
-
 # Set up secrets
 bw login
 bw get notes sops-keys > ~/.config/sops/age/vagari-os.txt
+
+# Apply your configuration
+cd /etc/nixos/vagari.os
+sudo nixos-rebuild switch --flake .#$(hostname)
 ```
 
-**If you used Option B (Automated Install)**:
-
-```bash
-# Just set up secrets
-bw login
-bw get notes sops-keys > ~/.config/sops/age/vagari-os.txt
-```
-
-<br>
 </details>
 
 ## Development Workflow

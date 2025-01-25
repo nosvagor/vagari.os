@@ -223,7 +223,7 @@ vagari.os/
 
 </details>
 
-<details>
+<details open>
 <summary>🚀 <b>2. Run Installation</b></summary>
 <br>
 

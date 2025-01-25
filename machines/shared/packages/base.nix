@@ -29,6 +29,8 @@
     nmap           # Network discovery
     socat          # Socket tool (modern netcat)
     ipcalc         # IP calculator
+    networkmanager # Network management
+    nmtui          # Text-based network manager UI
     
     # System Tools
     lm_sensors     # Hardware monitoring

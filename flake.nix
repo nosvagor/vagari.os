@@ -37,6 +37,7 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.nosvagor = import ./home/abbot.nix;
+            home-manager.extraSpecialArgs = { inherit inputs; };
           }
         ];
       };

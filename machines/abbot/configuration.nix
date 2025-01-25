@@ -16,6 +16,8 @@
     ../shared/fonts.nix              # System-wide fonts
     ../shared/packages/base.nix      # Base packages
     ../shared/packages/build.nix     # Development tools
+    ../shared/security.nix  # Security configs
+    ../shared/updates.nix    # Auto-update config
   ];
 
   # Machine identity

@@ -33,6 +33,12 @@
     
     # Pure btrfs setup for snapshots and CoW features
     supportedFilesystems = [ "btrfs" ];
+    btrfs = {
+      autoScrub = {
+        enable = true;
+        interval = "weekly";
+      };
+    };
   }; # -------------------------------------------------------------------------
 
   # Hardware support and firmware settings -------------------------------------
@@ -119,4 +125,47 @@
     allowedTCPPortRanges = [];  # No open TCP port ranges
     allowedUDPPortRanges = [];  # No open UDP port ranges
   }; # -------------------------------------------------------------------------
+
+  fileSystems = {
+    "/" = {
+      device = "/dev/mapper/root";
+      fsType = "btrfs";
+      options = [ "subvol=@" "compress=zstd" "noatime" ];
+    };
+    "/home" = {
+      device = "/dev/mapper/root";
+      fsType = "btrfs";
+      options = [ "subvol=@home" "compress=zstd" "noatime" ];
+    };
+    "/nix" = {
+      device = "/dev/mapper/root";
+      fsType = "btrfs";
+      options = [ "subvol=@nix" "compress=zstd" "noatime" ];
+    };
+    "/.snapshots" = {
+      device = "/dev/mapper/root";
+      fsType = "btrfs";
+      options = [ "subvol=@snapshots" "compress=zstd" "noatime" ];
+    };
+  };
+
+  swapDevices = [{
+    device = "/.swap/swapfile";
+    size = 4096;  # 4GB in MB
+  }];
+
+  # Create swapfile in BTRFS subvolume
+  systemd.services.create-swap = {
+    serviceConfig.Type = "oneshot";
+    wantedBy = [ "swap-swapfile.swap" ];
+    script = ''
+      mkdir -p /.swap
+      truncate -s 0 /.swap/swapfile
+      chattr +C /.swap/swapfile
+      btrfs property set /.swap/swapfile compression none
+      dd if=/dev/zero of=/.swap/swapfile bs=1M count=4096
+      chmod 600 /.swap/swapfile
+      mkswap /.swap/swapfile
+    '';
+  };
 } 

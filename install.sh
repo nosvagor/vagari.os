@@ -2,7 +2,7 @@
 
 # ##############################################################################
 # vagari.os Installation Script
-VERSION="0.2.0"
+VERSION="0.2.0-alpha"
 # Author: nosvagor
 # Repository: https://github.com/nosvagor/vagari.os
 # License: The Unlicense
@@ -66,22 +66,22 @@ trap 'fail "Installation interrupted [Error: INT-001]"' INT TERM
 parse_arguments() {
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -d|--disk) 
-                if [ -z "$2" ]; then
+            -d|--disk)
+                if [ "$2" = "" ]; then
                     fail "No disk specified for $1 [Error: ARG-001]"
                 fi
                 DISK="$2"
                 print_substep "Using disk: ${BOLD}$DISK${NC}"
                 shift 2 ;;
             -h|--hostname)
-                if [ -z "$2" ]; then
+                if [ "$2" = "" ]; then
                     fail "No hostname specified for $1 [Error: ARG-002]"
                 fi
                 HOSTNAME="$2"
                 print_substep "Using hostname: ${BOLD}$HOSTNAME${NC}"
                 shift 2 ;;
             -u|--username)
-                if [ -z "$2" ]; then
+                if [ "$2" = "" ]; then
                     fail "No username specified for $1 [Error: ARG-003]"
                 fi
                 USERNAME="$2"
@@ -112,7 +112,7 @@ parse_arguments() {
 
 # Print functions ==============================================================
 print_header() {
-    echo -e "${BLUE}"
+    echo -e "$BLUE"
     echo '  ██╗   ██╗ █████╗  ██████╗  █████╗ ██████╗ ██╗    ██████╗ ███████╗'
     echo '  ██║   ██║██╔══██╗██╔════╝ ██╔══██╗██╔══██╗██║   ██╔═══██╗██╔════╝'
     echo '  ██║   ██║███████║██║  ███╗███████║██████╔╝██║   ██║   ██║███████╗'
@@ -124,7 +124,7 @@ print_header() {
     echo -e "         →:.\:: ${YELLOW}https://github.com/nosvagor/vagari.os${NC} :::::: →"
     echo '        ::::.\::::::::.\::::::::.\::::::::.\::::::::.\:::::'
     echo '       →  →   `--'\''  →   `.-'\''  →   `--'\''  →   `--'\''  →   `--'\'' →'
-    echo -e "${NC}"
+    echo -e "$NC"
     echo -e "${BOLD}Welcome to vagari.os Installation${NC}"
     echo -e "${YELLOW}Version: ${VERSION}${NC}\n"
     echo -e "Run with ${BOLD}--help${NC} for usage information\n"
@@ -196,7 +196,7 @@ print_final_summary() {
     echo -e "Filesystem: BTRFS with optimized subvolumes"
     echo -e "Log file: ${LOG_FILE}"
     echo -e "\n${YELLOW}Remember to store your LUKS header backup in a safe place!${NC}"
-} 
+}
 
 # Helper functions
 cleanup() {
@@ -205,9 +205,9 @@ cleanup() {
         return
     fi
     CLEANUP_DONE=1
-    
+
     print_warning "Cleaning up and rolling back changes..."
-    
+
     # Unmount in reverse order
     if mountpoint -q /mnt; then
         print_substep "Unmounting filesystems"
@@ -216,7 +216,7 @@ cleanup() {
             lsof /mnt || true
         }
     fi
-    
+
     # Close encrypted devices
     if cryptsetup status root >/dev/null 2>&1; then
         print_substep "Closing encrypted devices"
@@ -225,29 +225,29 @@ cleanup() {
             dmsetup info root || true
         }
     fi
-    
+
     # Remove partitions if they exist
-    if [ -n "$BOOT_PART" ] && [ -b "$BOOT_PART" ]; then
+    if [ "$BOOT_PART" != "" ] && [ -b "$BOOT_PART" ]; then
         print_substep "Removing boot partition"
         wipefs --all "$BOOT_PART" 2>/dev/null || {
             print_warning "Failed to wipe boot partition"
             lsblk "$BOOT_PART" || true
         }
     fi
-    
-    if [ -n "$ROOT_PART" ] && [ -b "$ROOT_PART" ]; then
+
+    if [ "$ROOT_PART" != "" ] && [ -b "$ROOT_PART" ]; then
         print_substep "Removing root partition"
         wipefs --all "$ROOT_PART" 2>/dev/null || {
             print_warning "Failed to wipe root partition"
             lsblk "$ROOT_PART" || true
         }
     fi
-    
+
     # Remove temporary files
     print_substep "Cleaning up temporary files"
     rm -rf /tmp/vagari-os-* 2>/dev/null || true
     rm -rf /mnt/etc/nixos/vagari.os 2>/dev/null || true
-    
+
     # Close network connections
     print_substep "Closing network connections"
     if command -v nmcli >/dev/null 2>&1; then
@@ -256,7 +256,7 @@ cleanup() {
             nmcli connection show --active || true
         }
     fi
-    
+
     print_warning "Cleanup and rollback completed. System returned to pre-installation state."
 }
 
@@ -265,10 +265,10 @@ fail() {
     if [[ "$1" =~ \[Error: ]]; then
         error_code=$(echo "$1" | grep -oP '\[Error: \K[^\]]+')
     fi
-    
+
     # Call cleanup first
     cleanup
-    
+
     print_error "$1"
     echo -e "\n${RED}Error Details:${NC}"
     echo "Timestamp: $(date)"
@@ -281,7 +281,7 @@ fail() {
     echo "  Memory: $(free -h | awk '/^Mem:/{print $2}')"
     echo "  CPU: $(lscpu | grep 'Model name' | cut -d':' -f2 | xargs)"
     echo "  Disk Usage: $(df -h /mnt)"
-    
+
     exit 1
 }
 
@@ -291,17 +291,17 @@ show_progress() {
     local delay=0.75
     local spin='-\|/'
     echo -n "  ${CYAN}${msg}... ${NC}"
-    while kill -0 $pid 2>/dev/null; do
+    while kill -0 "$pid" 2>/dev/null; do
         local temp
         temp=${spin#?}
         printf " [%c]  " "$spin"
         local spin=$temp${spin%"$temp"}
-        sleep $delay
+        sleep "$delay"
         printf "\b\b\b\b\b\b"
     done
     printf "    \b\b\b\b"
     echo -e "\r  ${GREEN}✓${NC} ${msg} completed"
-} 
+}
 
 print_to_log() {
     local timestamp
@@ -358,7 +358,7 @@ verify_disk() {
     if [ ! -b "$disk" ]; then
         fail "Disk $disk not found or not a block device [Error: DISK-001]"
     fi
-    
+
     # Check if disk is mounted
     if mount | grep -q "$disk"; then
         fail "Disk $disk is currently mounted. [Error: DISK-002]
@@ -388,12 +388,12 @@ setup_encryption() {
         print_substep "Would set up LUKS encryption on $ROOT_PART"
         return 0
     fi
-    
+
     local attempts=3
     local success=false
-    
+
     # Format the partition with LUKS
-    while [ $attempts -gt 0 ] && [ "$success" = false ]; do
+    while [ "$attempts" -gt 0 ] && [ "$success" = false ]; do
         print_warning "Encryption setup attempt $((4 - attempts)) of 3"
         if cryptsetup luksFormat "$ROOT_PART"; then
             success=true
@@ -408,12 +408,12 @@ setup_encryption() {
             verify_encryption
         else
             attempts=$((attempts - 1))
-            if [ $attempts -gt 0 ]; then
+            if [ "$attempts" -gt 0 ]; then
                 print_warning "Failed to set up encryption. Retrying..."
             fi
         fi
     done
-    
+
     if [ "$success" = false ]; then
         fail "Failed to set up disk encryption after 3 attempts. [Error: LUKS-001]
         \nPossible causes:
@@ -425,21 +425,21 @@ setup_encryption() {
         2. Use simpler encryption parameters
         3. Check system memory with 'free -h'"
     fi
-    
+
     # Open the encrypted partition
     attempts=3
     success=false
-    while [ $attempts -gt 0 ] && [ "$success" = false ]; do
+    while [ "$attempts" -gt 0 ] && [ "$success" = false ]; do
         if cryptsetup luksOpen "$ROOT_PART" root; then
             success=true
         else
             attempts=$((attempts - 1))
-            if [ $attempts -gt 0 ]; then
+            if [ "$attempts" -gt 0 ]; then
                 print_warning "Failed to open encrypted partition. Retrying..."
             fi
         fi
     done
-    
+
     if [ "$success" = false ]; then
         fail "Failed to open encrypted partition after 3 attempts [Error: LUKS-002]"
     fi
@@ -475,7 +475,7 @@ verify_network() {
     print_step "Verifying network connection"
     local retries=3
     local success=false
-    
+
     for ((i=1; i<=retries; i++)); do
         if ping -c 1 -W 5 8.8.8.8 &>/dev/null || ping -c 1 -W 5 1.1.1.1 &>/dev/null; then
             success=true
@@ -484,7 +484,7 @@ verify_network() {
         print_warning "Network check attempt $i of $retries failed"
         sleep 2
     done
-    
+
     if [ "$success" = false ]; then
         fail "No internet connection detected [Error: NET-001]"
     fi
@@ -509,7 +509,7 @@ encryption_options() {
     echo "1) Full disk encryption (recommended)"
     echo "2) No encryption"
     read -p "Select encryption option (1-2): " enc_choice
-    
+
     case $enc_choice in
         1) setup_encryption ;;
         2) print_warning "Skipping disk encryption" ;;
@@ -519,11 +519,11 @@ encryption_options() {
 
 post_install() {
     print_step "Running post-install steps"
-    
+
     # Set up user password
     print_substep "Setting password for $USERNAME"
     passwd "$USERNAME" || print_warning "Failed to set password"
-    
+
     # Install git and clone repo
     print_substep "Installing git and cloning vagari.os"
     nix-env -iA nixos.git || print_warning "Failed to install git"
@@ -538,7 +538,7 @@ post_install() {
         2. Wait and try again later
         3. Verify disk space with 'df -h'"
     }
-    
+
     # Initialize flake
     print_substep "Initializing flake"
     nixos-rebuild switch --flake /mnt/etc/nixos/vagari-os#"${HOSTNAME}" || {
@@ -553,7 +553,7 @@ post_install() {
         2. Check network connection
         3. Run 'nix flake update'"
     }
-    
+
     print_success "Post-install steps completed"
 }
 
@@ -580,7 +580,7 @@ select_disk() {
 # Validation ===================================================================
 validate_system() {
     print_step "Validating system requirements"
-    
+
     # Check minimum memory
     local min_memory=2048  # 2GB in MB
     local available_memory
@@ -624,22 +624,22 @@ validate_system() {
 
 validate_partitions() {
     print_step "Validating partitions"
-    
+
     if [ ! -b "$BOOT_PART" ]; then
         fail "Boot partition $BOOT_PART not found"
     fi
-    
+
     if [ ! -b "$ROOT_PART" ]; then
         fail "Root partition $ROOT_PART not found"
     fi
-    
+
     # Check partition sizes
     local boot_size
     boot_size=$(blockdev --getsize64 "$BOOT_PART")
     if [ "$boot_size" -lt $((1024 * 1024 * 1024)) ]; then  # 1GB
         fail "Boot partition is too small. Minimum size: 1GB"
     fi
-    
+
     local root_size
     root_size=$(blockdev --getsize64 "$ROOT_PART")
     if [ "$root_size" -lt $((10 * 1024 * 1024 * 1024)) ]; then  # 10GB
@@ -650,15 +650,15 @@ validate_partitions() {
 # Add mount validation
 validate_mounts() {
     print_step "Validating mounts"
-    
+
     if ! mountpoint -q /mnt; then
         fail "Root partition not mounted at /mnt"
     fi
-    
+
     if ! mountpoint -q /mnt/boot; then
         fail "Boot partition not mounted at /mnt/boot"
     fi
-    
+
     # Check for sufficient free space
     local min_free_space=5000  # 5GB in MB
     local free_space
@@ -814,7 +814,7 @@ if [ ! -f "/mnt/etc/nixos/hardware-configuration.nix" ]; then
 fi
 
 ROOT_UUID=$(blkid -s UUID -o value "$ROOT_PART")
-if [ -z "$ROOT_UUID" ]; then
+if [ "$ROOT_UUID" = "" ]; then
     fail "Failed to get ROOT_UUID"
 fi
 # ------------------------------------------------------------------------------
@@ -879,7 +879,7 @@ cat > /mnt/etc/nixos/configuration.nix << EOF || fail "Failed to create configur
   };
 
   networking.hostName = "$HOSTNAME";
-  
+
   users.users.$USERNAME = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" ];
@@ -936,5 +936,4 @@ post_install
 # ------------------------------------------------------------------------------
 
 print_success "Installation complete!"
-print_next_steps 
-
+print_next_steps

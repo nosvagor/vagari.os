@@ -82,7 +82,7 @@
   # ╚═╗║╣ ║  ║ ║╠╦╝║ ║ ╚╦╝                                       SECURITY | SOPS
   # ╚═╝╚═╝╚═╝╚═╝╩╚═╩ ╩  ╩ ------------------------------------------------------ 
   imports = [ sops-nix.nixosModules.sops ];
-  environment.systemPackages = with pkgs; [ sops age ];
+  environment.systemPackages = with pkgs; [ sops age bitwarden-cli ];
   security = {
     protectKernelImage = true; # Prevent modification of running kernel image (disable if causing rare compatibility/debug issues)
     lockKernelModules = false; # Allow module loading after boot (enable if maximum security is desired & no new modules needed post-boot)

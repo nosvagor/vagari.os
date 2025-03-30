@@ -5,34 +5,7 @@ A personalized development environment, built using [Nix](https://nixos.org), in
 ## Overview
 
 **vagari.os** is my personal project to build a customized, modern Linux environment on top of NixOS.
-The goal is to move beyond traditional "dotfiles" and create an **entire** portable OS configuration. No IDE. Instead, the entire system is an personal development environment.
-
-## Project Structure
-
-```plaintext
-vagari.os/
-├── flake.nix             # main entry point
-├── machines/             # system configurations
-│   ├── shared/           # shared system settings
-│   │   ├── core.nix      # core (boot, hardware, services, users) settings
-│   │   ├── fonts.nix
-│   │   └── packages/     # base packages, organized by purpose
-│   │   │   ├── base.nix
-│   │   │   ├── build.nix
-│   │   │   ├── create.nix
-│   │   │   └── game.nix
-│   │   ├── abbot/            # portable AMD NUC config
-│   │   └── costello/         # full workstation config
-│   └── home/
-│       ├── modules/          # app configs
-│       │   ├── hyprland.nix
-│       │   ├── ghostty.nix
-│       │   ├── neovim.nix
-│       │   ├── browser.nix
-│       │   └── ...
-│       ├── abbot.nix         # AMD NUC home config
-│       └── costello.nix      # full Workstation home config
-```
+The goal is to move beyond traditional "dotfiles" and create an **entire** portable OS configuration.
 
 ## Software Stack
 
@@ -42,22 +15,9 @@ vagari.os/
 
 **Display Server**: [Wayland](https://wayland.freedesktop.org/)
 
-- Modern, secure display protocol
-- Better HiDPI support
-- Hardware acceleration
-
 **Window Manager**: [Hyprland](https://hyprland.org/)
 
-- Dynamic tiling Wayland compositor
-- GPU-accelerated animations
-- Modern features like blur and rounded corners
-- Custom workspace layout (SEDT-based)
-
 **Display Manager**: [SDDM](https://github.com/sddm/sddm)
-
-- Fast, modern login manager
-- Wayland support
-- Themed with Catppuccin
 
 </details>
 
@@ -99,9 +59,6 @@ vagari.os/
 
 **Widgets**: [Eww](https://github.com/elkowar/eww)
 
-- Used primarily as status Bar
-- Custom widgets for anything else that is needed.
-
 <br>
 </details>
 
@@ -109,55 +66,11 @@ vagari.os/
 <summary>📱 <b>Core Applications</b></summary>
 <br>
 
-**Terminal**: [Ghostty](https://github.com/mitchellh/ghostty)
-
-- GPU-accelerated terminal emulator
-- Modern features like ligatures
-- Excellent font rendering
+**Terminal**: [Kitty]()
 
 **Browser**: [Firefox Developer Edition](https://www.mozilla.org/en-US/firefox/developer/)
 
-- Custom privacy settings
-- Development tools enabled
-- Nordic theme integration
-- Additional browsers for testing:
-  - Chrome, Edge, Brave
-
 **Editor**: [Neovim](https://neovim.io/)
-
-- Modal editing
-- LSP integration
-- Custom configuration
-
-<br>
-</details>
-
-<details>
-<summary>🔧 <b>Utilities</b></summary>
-<br>
-
-**Build Tools**:
-
-- [`just`](https://github.com/casey/just): Modern Make alternative
-- [`ninja`](https://ninja-build.org/)/[`meson`](https://mesonbuild.com/): Fast build system
-- [`sccache`](https://github.com/mozilla/sccache): Compiler cache
-
-**Modern CLI Tools**:
-
-- [`eza`](https://github.com/eza-community/eza): Modern ls
-- [`bat`](https://github.com/sharkdp/bat): Modern cat
-- [`fd`](https://github.com/sharkdp/fd): Modern find
-- [`ripgrep`](https://github.com/BurntSushi/ripgrep): Modern grep
-- [`du-dust`](https://github.com/bootandy/dust): Modern du
-- [`btop`](https://github.com/aristocratos/btop): System monitor
-- [`zoxide`](https://github.com/ajeetdsouza/zoxide): Smart cd
-
-**Network Tools**:
-
-- [`age`](https://github.com/FiloSottile/age): Modern encryption
-- [`dogdns`](https://github.com/ogham/dog): Modern dig
-- [`mtr`](https://github.com/traviscross/mtr): Modern traceroute
-- [`socat`](http://www.dest-unreach.org/socat/): Modern netcat
 
 <br>
 </details>
@@ -196,7 +109,7 @@ vagari.os/
 
    ```bash
    # Download latest minimal ISO
-   curl -L -O https://channels.nixos.org/nixos-23.11/latest-nixos-minimal-x86_64-linux.iso
+   curl -L -O https://channels.nixos.org/nixos-24.11/latest-nixos-minimal-x86_64-linux.iso
    ```
 
 2. Create bootable USB:
@@ -206,8 +119,7 @@ vagari.os/
    lsblk
 
    # Write ISO to USB drive (replace sdX with your USB drive)
-   sudo dd if=nixos-minimal.iso of=/dev/sdX bs=4M status=progress
-   ```
+   sudo dd if=nixos-minimal.iso of=/dev/sdX bs=4M status=progressvu   ```
 
 3. Boot from USB and connect to internet if needed:
    ```bash
@@ -228,41 +140,78 @@ vagari.os/
 <br>
 
 ```bash
-# Download and run installer in one command
-sh <(curl -L https://raw.githubusercontent.com/nosvagor/vagari.os/master/install.sh)
-
-# Options                  (changes defaults in install.sh):
-# --hostname <hostname>    (default: abbot)
-# --disk <disk>            (default: /dev/nvme0n1)
-# --username <username>    (default: nosvagor)
-# --help
+# Download, make executable, and run installer in one command
+curl -Lsfo install.sh https://raw.githubusercontent.com/nosvagor/vagari.os/master/install.sh
+chmod +x install.sh
+sudo -i
+./install.sh
 ```
+
+**Replace placeholders:**
+
+- `<DISK_DEVICE>`: Target disk device name (e.g., `nvme0n1`, `sda`). **Do not include `/dev/`**.
+- `<HOSTNAME>`: Desired hostname (must match a machine in the flake, e.g., `abbot`).
+- `<USERNAME>`: Primary username for the system (e.g., `nosvagor`).
+
+**Other Options:**
+
+- `--post-install`: Show only the post-installation instructions.
+- `--dry-run`: Simulate the installation wito0798gbesttgbetgbetgbgiesthout making changes.
+- `--help`: Display help message.
 
 The script will:
 
-- Set up LUKS encryption (you'll be prompted for a passphrase)
-- Create BTRFS filesystem with subvolumes (@, @home, @nix, @snapshots)
-- Enable compression and other optimizations
-- Install base NixOS system
+- Set up LUKS encryption (you'll be prompted for a passphrase).
+- Create BTRFS filesystem with subvolumes (`@`, `@home`, `@nix`, `@snapshots`, `@swap`).
+- Clone the configuration repository.
+- Inject necessary configuration (LUKS UUID).
+- Install base NixOS system using the flake.
+- Prompt you to set the password for `<USERNAME>`.
 
 <br>
 </details>
 
 <details>
-<summary>🔐 <b>3. Post-Install Setup</b></summary>
+<summary>🔐 <b>3. Post-Install Setup (Manual Steps)</b></summary>
 <br>
 
-After installation and first boot:
+After the script finishes, you **must** perform these steps **before** rebooting:
 
-```bash
-# Set up secrets
-bw login
-bw get notes sops-keys > ~/.config/sops/age/vagari-os.txt
+1.  **Set Root Password:**
 
-# Apply your configuration
-cd /etc/nixos/vagari.os
-sudo nixos-rebuild switch --flake .#$(hostname)
-```
+    ```bash
+    # Enter the new system environment
+    nixos-enter --root /mnt
+
+    # Inside the environment, set the root password
+    passwd root
+
+    # Exit the environment
+    exit
+    ```
+
+2.  **Place SOPS Key:**
+
+    ```bash
+    # Ensure /mnt is still mounted
+    # Retrieve your SOPS key (e.g., using Bitwarden CLI)
+    bw get item sops-key --raw > /mnt/etc/sops/key.txt
+
+    # Set correct permissions (use nixos-enter again)
+    nixos-enter --root /mnt -c 'chmod 600 /etc/sops/key.txt'
+    ```
+
+3.  **Unmount and Reboot:**
+
+    ```bash
+    # Unmount all partitions
+    umount -R /mnt
+
+    # Reboot into your new system
+    reboot
+    ```
+
+_(You can view these instructions again anytime by running `./install.sh --post-install` from the installer environment)_
 
 </details>
 
@@ -326,41 +275,6 @@ sudo nixos-rebuild build --flake .#$(hostname)
 
 # 3. Apply if build succeeds
 sudo nixos-rebuild switch --flake .#$(hostname) --fast
-```
-
-<br>
-</details>
-
-<details>
-<summary>📝 <b>Version Control</b></summary>
-<br>
-
-**Atomic Changes**:
-
-```bash
-# Stage specific module changes
-git add home/modules/neovim.nix
-git commit -m "neovim: add telescope plugin"
-
-# Or stage all config changes
-git add .
-git commit -m "system: update core packages"
-```
-
-**Feature Branches**:
-
-```bash
-# Create feature branch
-git checkout -b feature/wayland-setup
-
-# Test and commit changes
-sudo nixos-rebuild build --flake .#$(hostname)
-git add .
-git commit -m "wayland: add hyprland configuration"
-
-# Merge when ready
-git checkout main
-git merge feature/wayland-setup
 ```
 
 <br>

@@ -35,38 +35,35 @@
   # ╔═╗╦ ╦╔╦╗╔═╗╦ ╦╔╦╗╔═╗
   # ║ ║║ ║ ║ ╠═╝║ ║ ║ ╚═╗                                       abbot | costello
   # ╚═╝╚═╝ ╩ ╩  ╚═╝ ╩ ╚═╝ ------------------------------------------------------
-  outputs = { self, nixpkgs, home-manager, sops-nix, inputs, ... }:
-
-    # mkSystem {machine} -> system config
+  outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs:
     let
-      primaryUser = "nosvagor"; 
-      mkSystem = machineName: pkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = { inherit inputs sops-nix primaryUser machineName; };
-        modules = [
-          ./machines/${machineName}/configuration.nix
-          home-manager.nixosModules.home-manager {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.${primaryUser} = import ./home/${machineName}.nix;
-            home-manager.extraSpecialArgs = { inherit inputs sops-nix primaryUser machineName; };
-          }
-        ];
-        home = {
-          username = primaryUser;
-          homeDirectory = "/home/${primaryUser}";
-          stateVersion = "23.11";
-        };
-        programs.home-manager.enable = true;
-      };
-    in 
+      # Helper function to build a NixOS system configuration
+      mkSystem = hostname: system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          primaryUser = "nosvagor";
+        in
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit inputs pkgs hostname primaryUser; };
+          modules = [
+            ./machines/${hostname}/configuration.nix
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.users.${primaryUser} = import ./home/${hostname}.nix;
+              home-manager.extraSpecialArgs = { inherit inputs hostname primaryUser; };
+            }
 
-    # extend by adding: ./machines/{machine}/configuration.nix
-    #                   ./home/{machine}.nix
-    { 
+            sops-nix.nixosModules.sops
+          ];
+        };
+    in
+    {
       nixosConfigurations = {
-        "abbot" = mkSystem "abbot";
-        "costello" = mkSystem "costello";
+        abbot = mkSystem "abbot" "x86_64-linux";
+        # costello = mkSystem "costello" "x86_64-linux"; # Uncomment or add others
       };
     };
   # ----------------------------------------------------------------------------

@@ -6,13 +6,18 @@
 #  ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
 # Core system configuration (boot, users, security, hardware/services, networking, filesystems/swap, nix)
 
-{ config, pkgs, primaryUser, machineName, sops-nix, ... }:
+{ config, pkgs, primaryUser, hostname, sops-nix, ... }:
 
 {
   # ╔╗ ╔═╗╔═╗╔╦╗
   # ╠╩╗║ ║║ ║ ║                                                             BOOT
   # ╚═╝╚═╝╚═╝ ╩ ----------------------------------------------------------------
-  environment.systemPackages = with pkgs; [ plymouth ];
+  environment.systemPackages = with pkgs; [ 
+    plymouth 
+    sops 
+    age 
+    bitwarden-cli 
+  ];
   boot = {
     loader = {
       systemd-boot = {
@@ -57,12 +62,13 @@
   users.users = {
     ${primaryUser} = {
       isNormalUser = true; 
-      description = "Primary user for ${machineName}";
-      extraGroups = [ "networkmanager" "video" "audio" ];
+      description = "Primary user for ${hostname}";
+      extraGroups = [ "networkmanager" "video" "audio" "wheel" ];
       shell = pkgs.zsh;    
     };
     root.shell = pkgs.zsh; 
   };
+  programs.zsh = { enable = true; };
   time.timeZone = "America/Los_Angeles";
   i18n.defaultLocale = "en_US.UTF-8";
   i18n.extraLocaleSettings ={
@@ -81,8 +87,6 @@
   # ╔═╗╔═╗╔═╗╦ ╦╦═╗╦╔╦╗╦ ╦
   # ╚═╗║╣ ║  ║ ║╠╦╝║ ║ ╚╦╝                                       SECURITY | SOPS
   # ╚═╝╚═╝╚═╝╚═╝╩╚═╩ ╩  ╩ ------------------------------------------------------ 
-  imports = [ sops-nix.nixosModules.sops ];
-  environment.systemPackages = with pkgs; [ sops age ];
   security = {
     protectKernelImage = true; # Prevent modification of running kernel image (disable if causing rare compatibility/debug issues)
     lockKernelModules = false; # Allow module loading after boot (enable if maximum security is desired & no new modules needed post-boot)
@@ -106,13 +110,11 @@
       wheelNeedsPassword = true;                # Require password even for wheel users (fallback) 
     };
 
-    users.groups.wheel.members = [ primaryUser ]; # Add primary user to wheel group
   };
 
   sops = {
-    enable = true; 
-    age.keyFile = "/var/lib/sops/age/keys.txt";
-    age.sshKeyPaths = [];
+    # age.keyFile = "/var/lib/sops/age/keys.txt";
+    # age.sshKeyPaths = [];
 
     # Optional default secret file settings
     # defaultSopsFile = ./../../secrets/secrets.yaml;
@@ -127,12 +129,11 @@
   # ╦ ╦╔═╗╦═╗╔╦╗╦ ╦╔═╗╦═╗╔═╗  
   # ╠═╣╠═╣╠╦╝ ║║║║║╠═╣╠╦╝║╣                                  HARDWARE | SERVICES
   # ╩ ╩╩ ╩╩╚══╩╝╚╩╝╩ ╩╩╚═╚═╝ ---------------------------------------------------
+  nixpkgs.config.allowUnfree = true;
   hardware = {
     enableAllFirmware = true;         # Needed for hardware detection
     opengl = {                        # Enable OpenGL graphics acceleration
       enable = true;                  # Enable base OpenGL support
-      driSupport = true;              # Enable Direct Rendering Infrastructure
-      driSupport32Bit = true;         # Enable DRI for 32-bit applications
     };
   }; 
 
@@ -160,6 +161,11 @@
       permitRootLogin = "no";         # Disallow root login
       passwordAuthentication = false; # Disallow password authentication
     };
+
+    btrfs.autoScrub = { 
+      enable = true; 
+      interval = "weekly"; 
+    };
   };
   # ----------------------------------------------------------------------------
 
@@ -172,7 +178,7 @@
     allowedTCPPortRanges = [];  # No open TCP ports by default
     allowedUDPPortRanges = [];  # No open UDP ports by default
   }; 
-  networking.hostName = machineName;
+  networking.hostName = hostname;
   networking.networkmanager.enable = true;
   # -------------------------------------------------------------------------
 
@@ -180,10 +186,8 @@
   # ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗
   # ╚═╗╚╦╝╚═╗ ║ ║╣ ║║║                                        FILESYSTEMS | SWAP
   # ╚═╝ ╩ ╚═╝ ╩ ╚═╝╩ ╩ ---------------------------------------------------------
-  supportedFilesystems = [ "btrfs" ];
   fileSystems = {
     "/" = {
-      device = "/dev/mapper/root";              
       fsType = "btrfs";           
       options = [ "subvol=@" "compress=zstd" "noatime" ];
     };
@@ -202,46 +206,37 @@
       fsType = "btrfs";
       options = [ "subvol=@snapshots" "compress=zstd" "noatime" ];
     };
+    "/.swap" = {
+      device = "/dev/mapper/root";
+      fsType = "btrfs";
+      options = [ "subvol=@swap" "compress=zstd" "noatime" ]; 
+    };
   };
-  btrfs.autoScrub = { enable = true; interval = "weekly"; };
   swapDevices = [{ device = "/.swap/swapfile"; size = 4096; }];
   systemd.services.create-swap = {
     description = "Create swap file for BTRFS";
     serviceConfig.Type = "oneshot";
     wantedBy = [ "swap-swapfile.swap" ];
     script = ''
-      set -e # Exit script on first error
-      SWAP_FILE="/.swap/swapfile" # Hardcode the path for clarity
-      SWAP_SIZE_MB=4096 # Define size, matching swapDevices
+      set -e 
+      SWAP_FILE="/.swap/swapfile" 
 
-      # Ensure directory exists
       mkdir -p "$(dirname "$SWAP_FILE")"
 
-      # Check if swapfile needs creation
       if ! [ -f "$SWAP_FILE" ]; then
         echo "Creating BTRFS swapfile at $SWAP_FILE..."
-        # Create empty file
         truncate -s 0 "$SWAP_FILE"
-        # Set No_COW attribute (CRITICAL for BTRFS swap)
         chattr +C "$SWAP_FILE"
-        # Disable BTRFS compression for swap file
         btrfs property set "$SWAP_FILE" compression none
-        # Allocate space efficiently
-        fallocate -l ${SWAP_SIZE_MB}M "$SWAP_FILE" || \
-          dd if=/dev/zero of="$SWAP_FILE" bs=1M count=${SWAP_SIZE_MB} status=progress
-        # Set secure permissions
+        fallocate -l 4096M "$SWAP_FILE" || \
+          dd if=/dev/zero of="$SWAP_FILE" bs=1M count=4096 status=progress
         chmod 0600 "$SWAP_FILE"
-        # Format the file as swap space
         mkswap "$SWAP_FILE"
         echo "Swapfile created."
       else
         echo "Swapfile $SWAP_FILE already exists."
-        # Ensure No_COW attribute is set even if file exists
         chattr +C "$SWAP_FILE"
       fi
-
-      # Activation is handled by systemd via the swap-swapfile.swap unit
-      # based on the `swapDevices` option. No need for `swapon` here.
     '';
   };
   # ----------------------------------------------------------------------------
@@ -275,4 +270,5 @@
     randomizedDelaySec = "45min";           # Random delay to avoid thundering herd
   };
   # ----------------------------------------------------------------------------
-} 
+
+}

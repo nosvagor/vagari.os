@@ -23,4 +23,11 @@
     rocm-opencl-icd      
     rocm-opencl-runtime 
   ];
+
+  boot.initrd.luks.devices = {
+    root = {
+      device = "/dev/disk/by-uuid/YOUR-UUID"; # <-- Actual placeholder
+      preLVM = true;
+    };
+  };
 } 

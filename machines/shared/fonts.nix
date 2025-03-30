@@ -12,8 +12,8 @@
   fonts = {
     packages = with pkgs; [
       # Core UI Fonts
-      satoshi             # Variable geometric sans-serif (primary UI)
-      outfit              # Variable geometric display
+      # satoshi             # Variable geometric sans-serif (primary UI)
+      outfit              # Variable geometric display - Ensure correct attribute name
 
       # Monospace
       (pkgs.iosevka.override { # https://typeof.net/Iosevka/customizer

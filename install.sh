@@ -316,10 +316,15 @@ partition_disk() {
         fail "Disk $DISK_PATH not found."
     fi
 
-    # Wipe existing signatures (optional but safer)
+    # Check if disk is mounted
+    if mount | grep -q "$DISK_PATH"; then
+        fail "Disk $DISK_PATH or its partitions are mounted. Unmount them first."
+    fi
+
+    # Wipe existing signatures
     path_print=$(print_link "$DISK_PATH")
     print_H3 "Wiping existing filesystem signatures on $path_print..."
-    prompt_yes_no "Wipe signatures on $path_print?" || fail "Declined to wipe signatures on $path_print."
+    prompt_yes_no "Wipe signatures on $path_print?" || fail "Declined to wipe signatures."
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would run wipefs --all $path_print"
     else
@@ -327,24 +332,18 @@ partition_disk() {
     fi
     print_success "Wiped signatures on $path_print"
 
+    # Partition the disk
     print_H3 "Creating GPT partition table and partitions on $path_print..."
     prompt_yes_no "Partition $path_print using parted?" || fail "Declined to partition $path_print."
-    # Define partition variables using the full disk path
-    local boot_part_path=""
-    local root_part_path=""
     if [[ "$DISK" == *"nvme"* ]]; then
-        boot_part_path="${DISK}p1"
-        root_part_path="${DISK}p2"
+        BOOT_PART="${DISK}p1"
+        ROOT_PART="${DISK}p2"
     else
-        boot_part_path="${DISK}1"
-        root_part_path="${DISK}2"
+        BOOT_PART="${DISK}1"
+        ROOT_PART="${DISK}2"
     fi
-    print_H3 "Target Boot Partition: $(print_tip "$boot_part_path")"
-    print_H3 "Target Root Partition: $(print_tip "$root_part_path")"
-
-    # Store these globally if needed by other functions (or pass as args)
-    BOOT_PART="$boot_part_path"
-    ROOT_PART="$root_part_path"
+    print_H3 "Target Boot Partition: $(print_tip "$BOOT_PART")"
+    print_H3 "Target Root Partition: $(print_tip "$ROOT_PART")"
 
     local parted_command="parted --script ${DISK_PATH} -- \
         mklabel gpt \
@@ -358,20 +357,45 @@ partition_disk() {
         print_faint "$parted_command"
     else
         eval "$parted_command" || fail "Failed to partition $DISK_PATH using parted."
-        partprobe "$DISK_PATH" || print_warning "partprobe failed, kernel might not see new partitions yet."
-        sleep 3
+        print_success "Parted script executed."
     fi
-    print_success "Parted script executed."
 
-    # Verify partitions were created using the full path
-    if ! lsblk "$BOOT_PART" >/dev/null 2>&1 || ! lsblk "$ROOT_PART" >/dev/null 2>&1; then
-        if [ "$DRY_RUN" = false ]; then
-            fail "Boot ($BOOT_PART) or Root ($ROOT_PART) partition not found after partitioning attempt."
-        else
-            print_faint "DRY-RUN: Partitions $BOOT_PART or $ROOT_PART would be checked for existence."
+    # Force kernel to recognize new partitions with a retry loop
+    if [ "$DRY_RUN" = false ]; then
+        print_H3 "Ensuring partitions are recognized by the kernel..."
+        local max_attempts=10
+        local attempt=1
+        local wait_time=4 # Seconds between retries
+
+        while [ $attempt -le $max_attempts ]; do
+            print_faint "Attempt $attempt/$max_attempts: Syncing partition table..."
+            partprobe "$DISK_PATH" 2>/dev/null || print_warning "partprobe failed."
+            blockdev --rereadpt "$DISK_PATH" 2>/dev/null || print_warning "blockdev rereadpt failed."
+            sync # Ensure disk writes are flushed
+
+            # Check if partitions exist
+            if lsblk "$BOOT_PART" >/dev/null 2>&1 && lsblk "$ROOT_PART" >/dev/null 2>&1; then
+                print_success "Partitions $BOOT_PART and $ROOT_PART detected."
+                break
+            fi
+
+            print_faint "Partitions not yet available. Waiting ${wait_time}s..."
+            sleep $wait_time
+            attempt=$((attempt + 1))
+        done
+
+        # Final check after retries
+        if ! lsblk "$BOOT_PART" >/dev/null 2>&1 || ! lsblk "$ROOT_PART" >/dev/null 2>&1; then
+            print_faint "Final lsblk output for debugging:"
+            print_faint "$(lsblk "$DISK_PATH")"
+            fail "Boot ($BOOT_PART) or Root ($ROOT_PART) partition not found after $max_attempts attempts."
         fi
+    else
+        print_faint "DRY-RUN: Would wait for partitions $BOOT_PART and $ROOT_PART to appear."
     fi
 
+    print_faint "Post-partition lsblk output:"
+    print_faint "$(lsblk "$DISK_PATH")"
     print_finish "Disk partitioning complete."
 }
 

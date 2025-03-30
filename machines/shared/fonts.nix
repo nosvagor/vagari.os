@@ -4,7 +4,7 @@
 # ██╔══╝  ██║   ██║██║╚██╗██║   ██║   ╚════██║
 # ██║     ╚██████╔╝██║ ╚████║   ██║   ███████║
 # ╚═╝      ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚══════╝
-# System-wide font configuration and rendering settings.
+# Default font configuration
 
 { config, pkgs, ... }:
 

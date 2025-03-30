@@ -11,7 +11,7 @@
 
 {
   environment.systemPackages = with pkgs; [
-    # Core Replacements (best-in-class)
+    # Core Replacements 
     eza            # Modern ls
     bat            # Modern cat
     fd             # Modern find
@@ -22,7 +22,6 @@
     zoxide         # Modern cd
     
     # Network Tools
-    age            # Modern encryption (replaces gpg for simple needs)
     dogdns         # Modern dig (DNS lookup)
     mtr            # Modern traceroute
     iperf3         # Network performance
@@ -60,6 +59,5 @@
     gimp           # Image editor
     inkscape       # Vector graphics
     ffmpeg         # Media tool suite
-
   ];
 }

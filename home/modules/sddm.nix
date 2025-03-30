@@ -10,11 +10,15 @@
 { config, pkgs, ... }:
 
 {
+   environment.systemPackages = with pkgs; [
+    catppuccin-sddm-theme
+  ];
+
   services.xserver = {
-    enable = true;               # Needed for SDDM
+    enable = true;               
     displayManager.sddm = {
       enable = true;
-      theme = "catppuccin";      # Using Catppuccin theme
+      theme = "catppuccin";      
       settings = {
         Theme = {
           CursorTheme = "Nordzy-cursors";
@@ -24,8 +28,5 @@
     };
   };
 
-  # Install SDDM theme
-  environment.systemPackages = with pkgs; [
-    catppuccin-sddm-theme
-  ];
+ 
 } 

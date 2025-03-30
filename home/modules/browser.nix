@@ -101,11 +101,11 @@
   # Install additional browsers for testing
   home.packages = with pkgs; [
     # Browsers
+    firefox            # Regular Firefox
     firefox-devedition   # Firefox Developer Edition
     google-chrome       # Chrome
     microsoft-edge      # Edge
     brave              # Brave Browser
-    firefox            # Regular Firefox
 
     # Browser development tools
     chromedriver       # For automated testing

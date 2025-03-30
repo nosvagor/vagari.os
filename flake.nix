@@ -10,51 +10,64 @@
 {
   description = "vagari.os - a personalized NixOS system";
 
-  # Inputs are external dependencies that your configuration uses. -----------------------------------------------------
+  # ╦╔╗╔╔═╗╦ ╦╔╦╗╔═╗
+  # ║║║║╠═╝║ ║ ║ ╚═╗                            latest | home-manager | sops-nix
+  # ╩╝╚╝╩  ╚═╝ ╩ ╚═╝ -----------------------------------------------------------
   inputs = { 
+    # nixpkgs: latest nixpkgs
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    # nixpkgs: The main source of packages and modules in Nix ecosystem 
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable"; # Using nixos-unstable for latest package versions
-    
-    # home-manager: Tool for managing user environment configuration in a modular fashion
+    # home-manager: app config manager
     home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs"; # Prevents dependency conflicts by using the same nixpkgs as above
+      url = "github:nix-community/home-manager";         
+      inputs.nixpkgs.follows = "nixpkgs"; 
     }; 
 
-  }; # -----------------------------------------------------------------------------------------------------------------
+    # sops-nix: secrets manager
+    sops-nix = {
+      url = "github:Mic92/sops-nix";                     
+      inputs.nixpkgs.follows = "nixpkgs"; 
+    };
+  };
+  # ----------------------------------------------------------------------------
 
-  # Outputs define what your flake provides to the system --------------------------------------------------------------
-  outputs = { self, nixpkgs, home-manager, ... }: { 
 
-    # NixOS machine configurations ---------------------------------------------
-    nixosConfigurations = {
-      "abbot" = nixpkgs.lib.nixosSystem {
+  # ╔═╗╦ ╦╔╦╗╔═╗╦ ╦╔╦╗╔═╗
+  # ║ ║║ ║ ║ ╠═╝║ ║ ║ ╚═╗                                       abbot | costello
+  # ╚═╝╚═╝ ╩ ╩  ╚═╝ ╩ ╚═╝ ------------------------------------------------------
+  outputs = { self, nixpkgs, home-manager, sops-nix, inputs, ... }:
+
+    # mkSystem {machine} -> system config
+    let
+      primaryUser = "nosvagor"; 
+      mkSystem = machineName: pkgs.lib.nixosSystem {
         system = "x86_64-linux";
-        modules = [ 
-          ./machines/abbot/configuration.nix
+        specialArgs = { inherit inputs sops-nix primaryUser machineName; };
+        modules = [
+          ./machines/${machineName}/configuration.nix
           home-manager.nixosModules.home-manager {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            home-manager.users.nosvagor = import ./home/abbot.nix;
-            home-manager.extraSpecialArgs = { inherit inputs; };
+            home-manager.users.${primaryUser} = import ./home/${machineName}.nix;
+            home-manager.extraSpecialArgs = { inherit inputs sops-nix primaryUser machineName; };
           }
         ];
+        home = {
+          username = primaryUser;
+          homeDirectory = "/home/${primaryUser}";
+          stateVersion = "23.11";
+        };
+        programs.home-manager.enable = true;
       };
+    in 
 
-      "costello" = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        modules = [ 
-          ./machines/costello/configuration.nix
-          home-manager.nixosModules.home-manager {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.nosvagor = import ./home/costello.nix;
-          }
-        ];
+    # extend by adding: ./machines/{machine}/configuration.nix
+    #                   ./home/{machine}.nix
+    { 
+      nixosConfigurations = {
+        "abbot" = mkSystem "abbot";
+        "costello" = mkSystem "costello";
       };
-    }; # -----------------------------------------------------------------------
-
-  }; # -----------------------------------------------------------------------------------------------------------------
-
+    };
+  # ----------------------------------------------------------------------------
 } 

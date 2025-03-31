@@ -51,14 +51,16 @@
             home-manager.useUserPackages = true;
             home-manager.users.${primaryUser} = import ./home/${machineName}.nix;
             home-manager.extraSpecialArgs = { inherit inputs primaryUser machineName; };
+            
+            # Configure Home Manager itself
+            home = {
+              username = primaryUser;
+              homeDirectory = "/home/${primaryUser}";
+              stateVersion = "23.11"; 
+            };
           }
+          sops-nix.nixosModules.sops
         ];
-        home = {
-          username = primaryUser;
-          homeDirectory = "/home/${primaryUser}";
-          stateVersion = "23.11";
-        };
-        programs.home-manager.enable = true;
       };
     in 
 

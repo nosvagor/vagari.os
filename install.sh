@@ -365,22 +365,32 @@ partition_disk() {
         print_H3 "Ensuring partitions are recognized by the kernel..."
         local max_attempts=10
         local attempt=1
-        local wait_time=4 # Seconds between retries
+        local short_wait=2
 
         while [ $attempt -le $max_attempts ]; do
-            print_faint "Attempt $attempt/$max_attempts: Syncing partition table..."
-            partprobe "$DISK_PATH" 2>/dev/null || print_warning "partprobe failed."
-            blockdev --rereadpt "$DISK_PATH" 2>/dev/null || print_warning "blockdev rereadpt failed."
-            sync # Ensure disk writes are flushed
+            print_faint "Attempt $attempt/$max_attempts: Asking kernel/udev to update..."
+            # Trigger udev rules and reread partition tables
+            udevadm trigger --action=add --subsystem-match=block
+            partprobe "$DISK_PATH" 2>/dev/null
+            blockdev --rereadpt "$DISK_PATH" 2>/dev/null
+            sync
 
-            # Check if partitions exist
+            print_faint "Attempt $attempt/$max_attempts: Waiting for udev events to settle..."
+            # Wait for udev queue to empty, with a timeout
+            if udevadm settle --timeout=15; then
+                print_faint "udev settled."
+            else
+                print_warning "udevadm settle timed out after 15s."
+            fi
+
+            # Check if partitions exist *after* settling
             if lsblk "$BOOT_PART" >/dev/null 2>&1 && lsblk "$ROOT_PART" >/dev/null 2>&1; then
                 print_success "Partitions $BOOT_PART and $ROOT_PART detected."
                 break
             fi
 
-            print_faint "Partitions not yet available. Waiting ${wait_time}s..."
-            sleep $wait_time
+            print_faint "Partitions still not available after settling. Waiting ${short_wait}s..."
+            sleep $short_wait # Short fallback sleep
             attempt=$((attempt + 1))
         done
 

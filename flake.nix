@@ -43,16 +43,15 @@
       primaryUser = "nosvagor"; 
       mkSystem = machineName: pkgs.lib.nixosSystem {
         system = "x86_64-linux";
-        specialArgs = { inherit inputs sops-nix primaryUser machineName; };
+        specialArgs = { inherit inputs primaryUser machineName; };
         modules = [
           ./machines/${machineName}/configuration.nix
           home-manager.nixosModules.home-manager {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.${primaryUser} = import ./home/${machineName}.nix;
-            home-manager.extraSpecialArgs = { inherit inputs sops-nix primaryUser machineName; };
+            home-manager.extraSpecialArgs = { inherit inputs primaryUser machineName; };
           }
-          sops-nix.nixosModules.sops
         ];
         home = {
           username = primaryUser;

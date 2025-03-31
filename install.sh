@@ -41,7 +41,7 @@ G="\033[0;32m" # Green
 B="\033[1;34m" # Bold Blue
 Y="\033[1;33m" # Bold Yellow
 M="\033[1;35m" # Bold Magenta
-U="\033[1;4m"  # Underline
+E="\033[1m"    # Bold
 C="\033[0;36m" # Cyan
 F="\033[1;30m" # Black
 N="\033[0m"    # Reset
@@ -200,21 +200,21 @@ fail() {
     print_error "INSTALLATION FAILED: $1"
     print_H2 "Attempting cleanup..."
 
-    # Check before trying to unmount
-    if mountpoint -q /mnt; then
-        umount -R /mnt || print_warning "Failed to unmount /mnt during cleanup."
-        print_success "unmount ran"
-    else
-        print_faint "/mnt not mounted, skipping unmount."
-    fi
+    # # Check before trying to unmount
+    # if mountpoint -q /mnt; then
+    #     umount -R /mnt || print_warning "Failed to unmount /mnt during cleanup."
+    #     print_success "unmount ran"
+    # else
+    #     print_faint "/mnt not mounted, skipping unmount."
+    # fi
 
     # Check before trying to close LUKS device
-    if [ -e /dev/mapper/root ]; then
-        cryptsetup luksClose /dev/mapper/root || print_warning "Failed to close LUKS device /dev/mapper/root during cleanup."
-        print_success "luks clean up ran"
-    else
-        print_attention "/dev/mapper/root not found, skipping LUKS close."
-    fi
+    # if [ -e /dev/mapper/root ]; then
+    #     cryptsetup luksClose /dev/mapper/root || print_warning "Failed to close LUKS device /dev/mapper/root during cleanup."
+    #     print_success "luks clean up ran"
+    # else
+    #     print_attention "/dev/mapper/root not found, skipping LUKS close."
+    # fi
 
     exit 1
 }
@@ -292,7 +292,7 @@ post_install_instructions() {
 prompt_yes_no() {
     local prompt_text
     # Combine the question prefix and the yes/no hint
-    prompt_text="$(print_question "$1 "$G$U"y"$N$G"es"$N"/"$R$U"n"$N$R"o"$N": ")"
+    prompt_text="$(print_question "$1 "$G$E"y"$N$G"es"$N"/"$R$E"n"$N$R"o"$N": ")"
     while true; do
         read -p "$prompt_text" yn
         case $yn in
@@ -690,6 +690,7 @@ install_nixos() {
         fi
         print_success "Found machine config: ${machine_config_file}"
         ls -la /mnt/etc/nixos
+        prompt_yes_no "Continue?" || fail "Declined to continue."
         print_success "Configuration files verified."
 
         if ! ping -c 1 -W 5 8.8.8.8 &>/dev/null && ! ping -c 1 -W 5 1.1.1.1 &>/dev/null; then

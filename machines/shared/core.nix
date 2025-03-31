@@ -81,7 +81,6 @@
   # ╔═╗╔═╗╔═╗╦ ╦╦═╗╦╔╦╗╦ ╦
   # ╚═╗║╣ ║  ║ ║╠╦╝║ ║ ╚╦╝                                       SECURITY | SOPS
   # ╚═╝╚═╝╚═╝╚═╝╩╚═╩ ╩  ╩ ------------------------------------------------------ 
-  imports = [ sops-nix.nixosModules.sops ];
   environment.systemPackages = with pkgs; [ sops age bitwarden-cli ];
   security = {
     protectKernelImage = true; # Prevent modification of running kernel image (disable if causing rare compatibility/debug issues)

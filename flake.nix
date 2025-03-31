@@ -52,6 +52,7 @@
             home-manager.users.${primaryUser} = import ./home/${machineName}.nix;
             home-manager.extraSpecialArgs = { inherit inputs sops-nix primaryUser machineName; };
           }
+          sops-nix.nixosModules.sops
         ];
         home = {
           username = primaryUser;

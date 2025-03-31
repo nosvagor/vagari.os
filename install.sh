@@ -333,11 +333,11 @@ partition_disk() {
     local boot_part_path=""
     local root_part_path=""
     if [[ "$DISK" == *"nvme"* ]]; then
-        boot_part_path="${DISK}p1"
-        root_part_path="${DISK}p2"
+        boot_part_path="${DISK_PATH}p1"
+        root_part_path="${DISK_PATH}p2"
     else
-        boot_part_path="${DISK}1"
-        root_part_path="${DISK}2"
+        boot_part_path="${DISK_PATH}1"
+        root_part_path="${DISK_PATH}2"
     fi
     print_H3 "Target Boot Partition: $(print_tip "$boot_part_path")"
     print_H3 "Target Root Partition: $(print_tip "$root_part_path")"
@@ -375,7 +375,7 @@ partition_disk() {
             print_warning "udevadm settle timed out after 15s. Partitions might not be ready yet."
         fi
         # Add a small safety sleep just in case settle finishes slightly too early
-        sleep 2
+        sleep 1
     fi
 
     # Verify partitions were created using the full path
@@ -387,11 +387,8 @@ partition_disk() {
         else
             print_faint "DRY-RUN: Partitions $BOOT_PART or $ROOT_PART would be checked for existence after settle."
         fi
-    else
-        if [ "$DRY_RUN" = false ]; then
-            print_success "Partitions $BOOT_PART and $ROOT_PART detected."
-        fi
     fi
+    print_success "Partitions $BOOT_PART and $ROOT_PART detected."
 
     print_faint "Post-partition lsblk output:"
     print_faint "$(lsblk "$DISK_PATH")"

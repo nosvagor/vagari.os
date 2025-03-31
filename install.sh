@@ -265,24 +265,24 @@ post_install_instructions() {
     print_attention "Enter the installed system environment:"
     print_link "nixos-enter --root /mnt"
     print_attention "Inside the environment, set the root password:"
-    print_link "passwd root"
-    print_link "exit"
+    print_tip "passwd root"
+    print_tip "exit"
     echo
 
     print_H2 "2. Place SOPS Key (Required for Secrets)"
     print_attention "Ensure the system is still mounted at /mnt."
     print_attention "Retrieve your SOPS key (e.g., using $(print_tip "bw") if installed) and place it at:"
-    print_link "/mnt/etc/sops/key.txt"
+    print_tip "/mnt/etc/sops/key.txt"
     print_attention "Example using Bitwarden CLI (run this *outside* nixos-enter):"
-    print_link "bw get item sops-key --raw > /mnt/etc/sops/key.txt"
+    print_tip "bw get item sops-key --raw > /mnt/etc/sops/key.txt"
     print_attention "Set correct permissions (inside nixos-enter):"
-    print_link "nixos-enter --root /mnt -c 'chmod 600 /etc/sops/key.txt'"
+    print_tip "nixos-enter --root /mnt -c 'chmod 600 /etc/sops/key.txt'"
     echo
 
     print_H2 "3. Unmount and Reboot"
     print_attention "After completing the steps above:"
-    print_link "umount -R /mnt"
-    print_link "reboot"
+    print_tip "umount -R /mnt"
+    print_tip "reboot"
 }
 
 # =============================================================================
@@ -316,15 +316,10 @@ partition_disk() {
         fail "Disk $DISK_PATH not found."
     fi
 
-    # Check if disk is mounted
-    if mount | grep -q "$DISK_PATH"; then
-        fail "Disk $DISK_PATH or its partitions are mounted. Unmount them first."
-    fi
-
-    # Wipe existing signatures
+    # Wipe existing signatures (optional but safer)
     path_print=$(print_link "$DISK_PATH")
     print_H3 "Wiping existing filesystem signatures on $path_print..."
-    prompt_yes_no "Wipe signatures on $path_print?" || fail "Declined to wipe signatures."
+    prompt_yes_no "Wipe signatures on $path_print?" || fail "Declined to wipe signatures on $path_print."
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would run wipefs --all $path_print"
     else
@@ -332,18 +327,24 @@ partition_disk() {
     fi
     print_success "Wiped signatures on $path_print"
 
-    # Partition the disk
     print_H3 "Creating GPT partition table and partitions on $path_print..."
     prompt_yes_no "Partition $path_print using parted?" || fail "Declined to partition $path_print."
+    # Define partition variables using the full disk path
+    local boot_part_path=""
+    local root_part_path=""
     if [[ "$DISK" == *"nvme"* ]]; then
-        BOOT_PART="${DISK}p1"
-        ROOT_PART="${DISK}p2"
+        boot_part_path="${DISK}p1"
+        root_part_path="${DISK}p2"
     else
-        BOOT_PART="${DISK}1"
-        ROOT_PART="${DISK}2"
+        boot_part_path="${DISK}1"
+        root_part_path="${DISK}2"
     fi
-    print_H3 "Target Boot Partition: $(print_tip "$BOOT_PART")"
-    print_H3 "Target Root Partition: $(print_tip "$ROOT_PART")"
+    print_H3 "Target Boot Partition: $(print_tip "$boot_part_path")"
+    print_H3 "Target Root Partition: $(print_tip "$root_part_path")"
+
+    # Store these globally if needed by other functions (or pass as args)
+    BOOT_PART="$boot_part_path"
+    ROOT_PART="$root_part_path"
 
     local parted_command="parted --script ${DISK_PATH} -- \
         mklabel gpt \
@@ -355,53 +356,41 @@ partition_disk() {
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would execute parted script:"
         print_faint "$parted_command"
+        print_faint "DRY-RUN: Would wait for partitions $BOOT_PART and $ROOT_PART to appear using udevadm settle."
     else
+        # Execute parted
         eval "$parted_command" || fail "Failed to partition $DISK_PATH using parted."
         print_success "Parted script executed."
+
+        # Attempt to sync partition table and wait for udev
+        print_H3 "Waiting for kernel to recognize new partitions..."
+        udevadm trigger --action=add --subsystem-match=block 2>/dev/null
+        partprobe "$DISK_PATH" 2>/dev/null
+        blockdev --rereadpt "$DISK_PATH" 2>/dev/null
+        sync
+        print_faint "Waiting up to 15 seconds for udev events to settle..."
+        if udevadm settle --timeout=15; then
+            print_faint "udev settled."
+        else
+            print_warning "udevadm settle timed out after 15s. Partitions might not be ready yet."
+        fi
+        # Add a small safety sleep just in case settle finishes slightly too early
+        sleep 2
     fi
 
-    # Force kernel to recognize new partitions with a retry loop
-    if [ "$DRY_RUN" = false ]; then
-        print_H3 "Ensuring partitions are recognized by the kernel..."
-        local max_attempts=10
-        local attempt=1
-        local short_wait=2
-
-        while [ $attempt -le $max_attempts ]; do
-            print_faint "Attempt $attempt/$max_attempts: Asking kernel/udev to update..."
-            # Trigger udev rules and reread partition tables
-            udevadm trigger --action=add --subsystem-match=block
-            partprobe "$DISK_PATH" 2>/dev/null
-            blockdev --rereadpt "$DISK_PATH" 2>/dev/null
-            sync
-
-            print_faint "Attempt $attempt/$max_attempts: Waiting for udev events to settle..."
-            # Wait for udev queue to empty, with a timeout
-            if udevadm settle --timeout=15; then
-                print_faint "udev settled."
-            else
-                print_warning "udevadm settle timed out after 15s."
-            fi
-
-            # Check if partitions exist *after* settling
-            if lsblk "$BOOT_PART" >/dev/null 2>&1 && lsblk "$ROOT_PART" >/dev/null 2>&1; then
-                print_success "Partitions $BOOT_PART and $ROOT_PART detected."
-                break
-            fi
-
-            print_faint "Partitions still not available after settling. Waiting ${short_wait}s..."
-            sleep $short_wait # Short fallback sleep
-            attempt=$((attempt + 1))
-        done
-
-        # Final check after retries
-        if ! lsblk "$BOOT_PART" >/dev/null 2>&1 || ! lsblk "$ROOT_PART" >/dev/null 2>&1; then
+    # Verify partitions were created using the full path
+    if ! lsblk "$BOOT_PART" >/dev/null 2>&1 || ! lsblk "$ROOT_PART" >/dev/null 2>&1; then
+        if [ "$DRY_RUN" = false ]; then
             print_faint "Final lsblk output for debugging:"
             print_faint "$(lsblk "$DISK_PATH")"
-            fail "Boot ($BOOT_PART) or Root ($ROOT_PART) partition not found after $max_attempts attempts."
+            fail "Boot ($BOOT_PART) or Root ($ROOT_PART) partition not found after running parted and udevadm settle."
+        else
+            print_faint "DRY-RUN: Partitions $BOOT_PART or $ROOT_PART would be checked for existence after settle."
         fi
     else
-        print_faint "DRY-RUN: Would wait for partitions $BOOT_PART and $ROOT_PART to appear."
+        if [ "$DRY_RUN" = false ]; then
+            print_success "Partitions $BOOT_PART and $ROOT_PART detected."
+        fi
     fi
 
     print_faint "Post-partition lsblk output:"

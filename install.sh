@@ -285,7 +285,7 @@ post_install_instructions() {
     print_tip "reboot"
 }
 
-# =============================================================================
+# ==============================================================================
 # === UTILITY FUNCTIONS =======================================================
 # ==============================================================================
 
@@ -565,66 +565,122 @@ mount_final_filesystems() {
 
 setup_nixos_config() {
     print_H2 "Setting up NixOS Configuration Files"
+    local hardware_config_source="/mnt/etc/nixos/hardware-configuration.nix"
+    local temp_hardware_config_dest="/mnt/tmp/hardware-configuration.nix" # Temporary location
+    local final_hardware_config_dest="${REPO_DIR}/machines/${HOSTNAME}/hardware-configuration.nix"
+    local nixos_config_dir="/mnt/etc/nixos" # Standard config dir
 
     # 1. Generate hardware configuration
     print_H3 "Generating hardware-configuration.nix..."
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would run nixos-generate-config --root /mnt"
+        # Simulate file creation for dry run logic
+        mkdir -p "$(dirname "$hardware_config_source")"
+        touch "$hardware_config_source"
     else
         nixos-generate-config --root /mnt || fail "Failed to generate hardware configuration."
-        if [ ! -f "/mnt/etc/nixos/hardware-configuration.nix" ]; then
+        if [ ! -f "$hardware_config_source" ]; then
             fail "hardware-configuration.nix not found after generation."
         fi
     fi
     print_success "hardware-configuration.nix generated."
 
-    # 2. Clone the vagari.os repository
+    # 2. Move hardware configuration to a temporary location
+    print_H3 "Temporarily moving hardware config to ${temp_hardware_config_dest}..."
+    if [ "$DRY_RUN" = true ]; then
+        print_faint "DRY-RUN: Would move $hardware_config_source to $temp_hardware_config_dest"
+    else
+        mkdir -p "$(dirname "$temp_hardware_config_dest")" || fail "Failed to create temporary directory /mnt/tmp."
+        mv "$hardware_config_source" "$temp_hardware_config_dest" || fail "Failed to move hardware configuration to temporary location."
+    fi
+    print_success "Hardware configuration temporarily moved."
+
+    # 3. Remove the original NixOS config directory
+    print_H3 "Removing generated NixOS config directory ${nixos_config_dir}..."
+    if [ "$DRY_RUN" = true ]; then
+        print_faint "DRY-RUN: Would remove directory ${nixos_config_dir}"
+        # Simulate removal for dry run logic (if source existed)
+        if [ -f "$hardware_config_source" ]; then # Check original path from step 1 simulation
+           rm "$hardware_config_source" # Clean up simulated file
+        fi
+        if [ -d "$nixos_config_dir" ]; then
+           rmdir "$nixos_config_dir" # Clean up simulated dir
+        fi
+    else
+        # Check if the directory exists before attempting removal
+        if [ -d "$nixos_config_dir" ]; then
+            rm -rf "$nixos_config_dir" || fail "Failed to remove existing ${nixos_config_dir} directory."
+            print_success "Removed existing ${nixos_config_dir}."
+        else
+            print_faint "Directory ${nixos_config_dir} did not exist, skipping removal."
+        fi
+    fi
+
+
+    # 4. Clone the vagari.os repository
     print_H3 "Cloning repository $REPO_URL to $REPO_DIR..."
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would clone $REPO_URL into $REPO_DIR"
+        # Simulate clone for dry run
+        mkdir -p "$REPO_DIR"
     else
         if ! command -v git &>/dev/null; then
             print_attention "git command not found. Attempting to install via nix-env..."
             nix-env -iA nixos.git || fail "Failed to install git. Cannot clone repository."
         fi
-        rm -f /mnt/etc/nixos/configuration.nix
-        git clone "$REPO_URL" "$REPO_DIR" || fail "Failed to clone repository."
+        # REPO_DIR is /mnt/etc/nixos, git clone will create it
+        git clone "$REPO_URL" "$REPO_DIR" || fail "Failed to clone repository into ${REPO_DIR}."
     fi
     print_success "Repository cloned."
 
-    # 3. Place hardware configuration into the repo structure
-    local hardware_config_source="/mnt/etc/nixos/hardware-configuration.nix"
-    local hardware_config_dest="${REPO_DIR}/machines/${HOSTNAME}/hardware-configuration.nix"
-    print_H3 "Moving hardware config to ${hardware_config_dest}..."
+    # 5. Place hardware configuration into the repo structure
+    print_H3 "Moving hardware config from temporary location to ${final_hardware_config_dest}..."
     if [ "$DRY_RUN" = true ]; then
-        print_faint "DRY-RUN: Would move $hardware_config_source to $hardware_config_dest"
-    else
-        if [ ! -f "$hardware_config_source" ]; then
-            fail "Generated hardware config $hardware_config_source not found!"
+        print_faint "DRY-RUN: Would move $temp_hardware_config_dest to $final_hardware_config_dest"
+        # Clean up simulated temp file
+        if [ -f "$temp_hardware_config_dest" ]; then
+            rm "$temp_hardware_config_dest"
+            rmdir "$(dirname "$temp_hardware_config_dest")" # Clean up simulated temp dir
         fi
-        mkdir -p "$(dirname "${hardware_config_dest}")" # Ensure destination dir exists
-        mv "$hardware_config_source" "$hardware_config_dest" || fail "Failed to move hardware configuration."
+    else
+        if [ ! -f "$temp_hardware_config_dest" ]; then
+            fail "Temporary hardware config $temp_hardware_config_dest not found!"
+        fi
+         # Ensure the destination directory within the cloned repo exists
+        mkdir -p "$(dirname "${final_hardware_config_dest}")" || fail "Failed to create destination directory ${final_hardware_config_dest}."
+        mv "$temp_hardware_config_dest" "$final_hardware_config_dest" || fail "Failed to move hardware configuration to final destination."
+        # Optional: Clean up temporary directory if empty
+        rmdir "$(dirname "$temp_hardware_config_dest")" 2>/dev/null || true
     fi
-    print_success "Hardware configuration moved."
+    print_success "Hardware configuration moved to final location."
 
-    # 4. Inject the LUKS UUID
+    # 6. Inject the LUKS UUID
     local machine_config_file="${REPO_DIR}/machines/${HOSTNAME}/configuration.nix"
     local uuid_placeholder="YOUR-UUID"
     print_H3 "Injecting LUKS UUID ($ROOT_UUID) into ${machine_config_file} (replacing '$uuid_placeholder')..."
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would replace '$uuid_placeholder' with '$ROOT_UUID' in $machine_config_file"
+        # Simulate file existence for dry run
+         mkdir -p "$(dirname "$machine_config_file")"
+         echo "boot.initrd.luks.devices.root.device = \"/dev/disk/by-uuid/YOUR-UUID\";" > "$machine_config_file"
     else
         if [[ -z "$ROOT_UUID" || "$ROOT_UUID" == "DRY-RUN-UUID" ]]; then # Ensure we have a real UUID
             fail "Invalid ROOT_UUID ($ROOT_UUID). Cannot inject into configuration."
         fi
         if [ ! -f "$machine_config_file" ]; then
-            fail "Machine configuration file $machine_config_file not found!"
+            fail "Machine configuration file $machine_config_file not found! Was the repo cloned correctly and does the host profile exist?"
         fi
         # Check if placeholder exists before attempting replacement
         if ! grep -q "$uuid_placeholder" "$machine_config_file"; then
-            fail "Placeholder '$uuid_placeholder' not found in $machine_config_file. Cannot inject required LUKS UUID."
+            # Check if the correct UUID is already there (idempotency)
+            if grep -q "$ROOT_UUID" "$machine_config_file"; then
+                print_faint "LUKS UUID ($ROOT_UUID) seems to be already present in $machine_config_file. Skipping replacement."
+            else
+                 fail "Placeholder '$uuid_placeholder' not found in $machine_config_file, and the correct UUID ($ROOT_UUID) is also not present. Cannot inject required LUKS UUID."
+            fi
         else
             sed -i "s|$uuid_placeholder|$ROOT_UUID|g" "$machine_config_file" || fail "Failed to inject LUKS UUID using sed."
+            # Verify replacement
             if grep -q "$uuid_placeholder" "$machine_config_file"; then
                 print_warning "UUID placeholder might still be present after replacement attempt in $machine_config_file"
                 fail "UUID placeholder still present after sed replacement!"

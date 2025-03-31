@@ -574,9 +574,6 @@ setup_nixos_config() {
     print_H3 "Generating hardware-configuration.nix..."
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would run nixos-generate-config --root /mnt"
-        # Simulate file creation for dry run logic
-        mkdir -p "$(dirname "$hardware_config_source")"
-        touch "$hardware_config_source"
     else
         nixos-generate-config --root /mnt || fail "Failed to generate hardware configuration."
         if [ ! -f "$hardware_config_source" ]; then
@@ -599,15 +596,7 @@ setup_nixos_config() {
     print_H3 "Removing generated NixOS config directory ${nixos_config_dir}..."
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would remove directory ${nixos_config_dir}"
-        # Simulate removal for dry run logic (if source existed)
-        if [ -f "$hardware_config_source" ]; then # Check original path from step 1 simulation
-           rm "$hardware_config_source" # Clean up simulated file
-        fi
-        if [ -d "$nixos_config_dir" ]; then
-           rmdir "$nixos_config_dir" # Clean up simulated dir
-        fi
     else
-        # Check if the directory exists before attempting removal
         if [ -d "$nixos_config_dir" ]; then
             rm -rf "$nixos_config_dir" || fail "Failed to remove existing ${nixos_config_dir} directory."
             print_success "Removed existing ${nixos_config_dir}."
@@ -616,41 +605,27 @@ setup_nixos_config() {
         fi
     fi
 
-
     # 4. Clone the vagari.os repository
     print_H3 "Cloning repository $REPO_URL to $REPO_DIR..."
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would clone $REPO_URL into $REPO_DIR"
-        # Simulate clone for dry run
-        mkdir -p "$REPO_DIR"
     else
         if ! command -v git &>/dev/null; then
             print_attention "git command not found. Attempting to install via nix-env..."
             nix-env -iA nixos.git || fail "Failed to install git. Cannot clone repository."
         fi
-        # REPO_DIR is /mnt/etc/nixos, git clone will create it
         git clone "$REPO_URL" "$REPO_DIR" || fail "Failed to clone repository into ${REPO_DIR}."
     fi
     print_success "Repository cloned."
 
-    # 5. Place hardware configuration into the repo structure
     print_H3 "Moving hardware config from temporary location to ${final_hardware_config_dest}..."
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would move $temp_hardware_config_dest to $final_hardware_config_dest"
-        # Clean up simulated temp file
-        if [ -f "$temp_hardware_config_dest" ]; then
-            rm "$temp_hardware_config_dest"
-            rmdir "$(dirname "$temp_hardware_config_dest")" # Clean up simulated temp dir
-        fi
     else
         if [ ! -f "$temp_hardware_config_dest" ]; then
             fail "Temporary hardware config $temp_hardware_config_dest not found!"
         fi
-         # Ensure the destination directory within the cloned repo exists
-        mkdir -p "$(dirname "${final_hardware_config_dest}")" || fail "Failed to create destination directory ${final_hardware_config_dest}."
         mv "$temp_hardware_config_dest" "$final_hardware_config_dest" || fail "Failed to move hardware configuration to final destination."
-        # Optional: Clean up temporary directory if empty
-        rmdir "$(dirname "$temp_hardware_config_dest")" 2>/dev/null || true
     fi
     print_success "Hardware configuration moved to final location."
 
@@ -660,27 +635,21 @@ setup_nixos_config() {
     print_H3 "Injecting LUKS UUID ($ROOT_UUID) into ${machine_config_file} (replacing '$uuid_placeholder')..."
     if [ "$DRY_RUN" = true ]; then
         print_faint "DRY-RUN: Would replace '$uuid_placeholder' with '$ROOT_UUID' in $machine_config_file"
-        # Simulate file existence for dry run
-         mkdir -p "$(dirname "$machine_config_file")"
-         echo "boot.initrd.luks.devices.root.device = \"/dev/disk/by-uuid/YOUR-UUID\";" > "$machine_config_file"
     else
-        if [[ -z "$ROOT_UUID" || "$ROOT_UUID" == "DRY-RUN-UUID" ]]; then # Ensure we have a real UUID
+        if [[ -z "$ROOT_UUID" || "$ROOT_UUID" == "DRY-RUN-UUID" ]]; then
             fail "Invalid ROOT_UUID ($ROOT_UUID). Cannot inject into configuration."
         fi
         if [ ! -f "$machine_config_file" ]; then
             fail "Machine configuration file $machine_config_file not found! Was the repo cloned correctly and does the host profile exist?"
         fi
-        # Check if placeholder exists before attempting replacement
         if ! grep -q "$uuid_placeholder" "$machine_config_file"; then
-            # Check if the correct UUID is already there (idempotency)
             if grep -q "$ROOT_UUID" "$machine_config_file"; then
                 print_faint "LUKS UUID ($ROOT_UUID) seems to be already present in $machine_config_file. Skipping replacement."
             else
-                 fail "Placeholder '$uuid_placeholder' not found in $machine_config_file, and the correct UUID ($ROOT_UUID) is also not present. Cannot inject required LUKS UUID."
+                fail "Placeholder '$uuid_placeholder' not found in $machine_config_file, and the correct UUID ($ROOT_UUID) is also not present. Cannot inject required LUKS UUID."
             fi
         else
             sed -i "s|$uuid_placeholder|$ROOT_UUID|g" "$machine_config_file" || fail "Failed to inject LUKS UUID using sed."
-            # Verify replacement
             if grep -q "$uuid_placeholder" "$machine_config_file"; then
                 print_warning "UUID placeholder might still be present after replacement attempt in $machine_config_file"
                 fail "UUID placeholder still present after sed replacement!"
@@ -695,7 +664,6 @@ setup_nixos_config() {
 
 install_nixos() {
     print_H1 "Installing NixOS from Local Flake"
-    # Use explicit git+file:// prefix for clarity and robustness
     local flake_path="git+file://${REPO_DIR}#${HOSTNAME}"
     local machine_config_file="${REPO_DIR}/machines/${HOSTNAME}/configuration.nix"
 
@@ -706,30 +674,29 @@ install_nixos() {
         print_faint "DRY-RUN: Would check for existence of ${REPO_DIR}, ${REPO_DIR}/flake.nix, and ${machine_config_file}"
         print_faint "DRY-RUN: Would execute: nixos-install --root /mnt --flake ${flake_path}"
     else
-        # --- Pre-flight Checks ---
         print_H3 "Verifying configuration files before install..."
         if [ ! -d "${REPO_DIR}" ]; then
             fail "Repository directory ${REPO_DIR} not found!"
         fi
-        print_faint "Found repository directory: ${REPO_DIR}"
+        print_success "Found repository directory: ${REPO_DIR}"
 
         if [ ! -f "${REPO_DIR}/flake.nix" ]; then
             fail "flake.nix not found in ${REPO_DIR}!"
         fi
-        print_faint "Found flake.nix: ${REPO_DIR}/flake.nix"
+        print_success "Found flake.nix: ${REPO_DIR}/flake.nix"
 
         if [ ! -f "${machine_config_file}" ]; then
             fail "Machine configuration file ${machine_config_file} not found!"
         fi
-        print_faint "Found machine config: ${machine_config_file}"
+        print_success "Found machine config: ${machine_config_file}"
+        ls -la /mnt/etc/nixos
         print_success "Configuration files verified."
-        # --- End Pre-flight Checks ---
 
         if ! ping -c 1 -W 5 8.8.8.8 &>/dev/null && ! ping -c 1 -W 5 1.1.1.1 &>/dev/null; then
             fail "No internet connection detected before NixOS install."
         fi
         print_attention "Installation logs will be shown below."
-        nixos-install --root /mnt --flake "$flake_path" || fail "NixOS installation failed."
+        nixos-install --show-trace --root /mnt --flake "$flake_path" || fail "NixOS installation failed."
     fi
 
     print_finish "NixOS installation command completed."

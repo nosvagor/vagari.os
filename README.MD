@@ -157,7 +157,7 @@ sudo -i
 **Other Options:**
 
 - `--post-install`: Show only the post-installation instructions.
-- `--dry-run`: Simulate the installation without making changes.
+- `--dry-run`: Simulate the installation wito0798gbesttgbetgbetgbgiesthout making changes.
 - `--help`: Display help message.
 
 The script will:

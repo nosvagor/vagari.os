@@ -35,28 +35,25 @@
   # ╔═╗╦ ╦╔╦╗╔═╗╦ ╦╔╦╗╔═╗
   # ║ ║║ ║ ║ ╠═╝║ ║ ║ ╚═╗                                       abbot | costello
   # ╚═╝╚═╝ ╩ ╩  ╚═╝ ╩ ╚═╝ ------------------------------------------------------
-  outputs = { self, nixpkgs, home-manager, sops-nix, ... }:
+  outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs:
 
     # mkSystem {machine} -> system config
     let
-      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      system = "x86_64-linux";
       primaryUser = "nosvagor"; 
-      mkSystem = machineName: pkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = { inherit primaryUser machineName; };
+      mkSystem = machineName: nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { 
+          inherit inputs primaryUser machineName; 
+        };
         modules = [
           ./machines/${machineName}/configuration.nix
           home-manager.nixosModules.home-manager {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.${primaryUser} = import ./home/${machineName}.nix;
-            home-manager.extraSpecialArgs = { inherit primaryUser machineName; };
-            
-            # Configure Home Manager itself
-            home = {
-              username = primaryUser;
-              homeDirectory = "/home/${primaryUser}";
-              stateVersion = "23.11"; 
+            home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              users.${primaryUser} = import ./home/${machineName}.nix;
+              extraSpecialArgs = { inherit inputs primaryUser machineName; };
             };
           }
           sops-nix.nixosModules.sops

@@ -39,6 +39,7 @@
 
     # mkSystem {machine} -> system config
     let
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
       primaryUser = "nosvagor"; 
       mkSystem = machineName: pkgs.lib.nixosSystem {
         system = "x86_64-linux";

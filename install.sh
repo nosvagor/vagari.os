@@ -695,14 +695,36 @@ setup_nixos_config() {
 
 install_nixos() {
     print_H1 "Installing NixOS from Local Flake"
-    local flake_path="${REPO_DIR}#${HOSTNAME}"
+    # Use explicit git+file:// prefix for clarity and robustness
+    local flake_path="git+file://${REPO_DIR}#${HOSTNAME}"
+    local machine_config_file="${REPO_DIR}/machines/${HOSTNAME}/configuration.nix"
 
     print_H3 "Running nixos-install with flake: ${flake_path}..."
     print_attention "This step will take a while as it downloads and builds packages."
 
     if [ "$DRY_RUN" = true ]; then
+        print_faint "DRY-RUN: Would check for existence of ${REPO_DIR}, ${REPO_DIR}/flake.nix, and ${machine_config_file}"
         print_faint "DRY-RUN: Would execute: nixos-install --root /mnt --flake ${flake_path}"
     else
+        # --- Pre-flight Checks ---
+        print_H3 "Verifying configuration files before install..."
+        if [ ! -d "${REPO_DIR}" ]; then
+            fail "Repository directory ${REPO_DIR} not found!"
+        fi
+        print_faint "Found repository directory: ${REPO_DIR}"
+
+        if [ ! -f "${REPO_DIR}/flake.nix" ]; then
+            fail "flake.nix not found in ${REPO_DIR}!"
+        fi
+        print_faint "Found flake.nix: ${REPO_DIR}/flake.nix"
+
+        if [ ! -f "${machine_config_file}" ]; then
+            fail "Machine configuration file ${machine_config_file} not found!"
+        fi
+        print_faint "Found machine config: ${machine_config_file}"
+        print_success "Configuration files verified."
+        # --- End Pre-flight Checks ---
+
         if ! ping -c 1 -W 5 8.8.8.8 &>/dev/null && ! ping -c 1 -W 5 1.1.1.1 &>/dev/null; then
             fail "No internet connection detected before NixOS install."
         fi

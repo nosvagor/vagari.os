@@ -36,37 +36,33 @@
   # ║ ║║ ║ ║ ╠═╝║ ║ ║ ╚═╗                                       abbot | costello
   # ╚═╝╚═╝ ╩ ╩  ╚═╝ ╩ ╚═╝ ------------------------------------------------------
   outputs = { self, nixpkgs, home-manager, sops-nix, ... }@inputs:
-
-    # mkSystem {machine} -> system config
     let
-      system = "x86_64-linux";
-      primaryUser = "nosvagor"; 
-      mkSystem = machineName: nixpkgs.lib.nixosSystem {
-        inherit system;
-        specialArgs = { 
-          inherit inputs primaryUser machineName; 
-        };
-        modules = [
-          ./machines/${machineName}/configuration.nix
-          home-manager.nixosModules.home-manager {
-            home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              users.${primaryUser} = import ./home/${machineName}.nix;
-              extraSpecialArgs = { inherit inputs primaryUser machineName; };
-            };
-          }
-          sops-nix.nixosModules.sops
-        ];
-      };
-    in 
+      # Helper function to build a NixOS system configuration
+      mkSystem = hostname: system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit inputs hostname; };
+          modules = [
+            ./machines/${hostname}/configuration.nix
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.users.nosvagor = import ./home/${hostname}.nix;
+              home-manager.extraSpecialArgs = { inherit inputs hostname; };
+            }
 
-    # extend by adding: ./machines/{machine}/configuration.nix
-    #                   ./home/{machine}.nix
-    { 
+            sops-nix.nixosModules.sops
+          ];
+        };
+    in
+    {
       nixosConfigurations = {
-        "abbot" = mkSystem "abbot";
-        "costello" = mkSystem "costello";
+        abbot = mkSystem "abbot" "x86_64-linux";
+        # costello = mkSystem "costello" "x86_64-linux"; # Uncomment or add others
       };
     };
   # ----------------------------------------------------------------------------

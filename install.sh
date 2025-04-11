@@ -459,6 +459,15 @@ setup_nixos_config() {
     mv "$temp_hardware_config_dest" "$final_hardware_config_dest" || fail "Failed to move hardware configuration to final destination."
     print_success "Hardware configuration moved to final location."
 
+    print_H3 "Adding hardware configuration to Git index..."
+    print_faint "Adding $REPO_DIR to git safe.directory config..."
+    git config --global --add safe.directory "$REPO_DIR" || print_warning "Failed to add $REPO_DIR to git safe.directory."
+    git -C "$REPO_DIR" config user.name "Vagari Installer" || print_warning "Failed to set git user.name"
+    git -C "$REPO_DIR" config user.email "installer@vagari.local" || print_warning "Failed to set git user.email"
+    git -C "$REPO_DIR" add -f "machines/${HOSTNAME}/hardware-configuration.nix" || fail "Failed to git add hardware configuration."
+    git -C "$REPO_DIR" commit -m "Add generated hardware configuration for ${HOSTNAME}" --no-gpg-sign --author="Vagari Installer <installer@vagari.local>" || fail "Failed to git commit hardware configuration."
+    print_success "Hardware configuration added and committed in Git."
+
     local machine_config_file="${REPO_DIR}/machines/${HOSTNAME}/configuration.nix"
     local uuid_placeholder="YOUR-UUID"
     print_H3 "Injecting LUKS UUID ($ROOT_UUID) into ${machine_config_file} (replacing '$uuid_placeholder')..."
@@ -494,7 +503,6 @@ install_nixos() {
 
     print_H3 "Running nixos-install with flake: ${flake_path}..."
     print_attention "This step will take a while as it downloads and builds packages."
-    print_attention "If this step fails, error logs will be saved to: $(print_link "$install_log_file")"
 
     print_H3 "Verifying configuration files before install..."
     if [ ! -d "${REPO_DIR}" ]; then
@@ -512,19 +520,13 @@ install_nixos() {
     fi
     print_success "Found machine config: ${machine_config_file}"
 
-    ls -la "${REPO_DIR}" 
-    ls -la "$(dirname "${machine_config_file}")" 
-
     prompt_yes_no "Ready to run nixos-install?" || fail "Declined to run nixos-install."
-    print_success "Configuration files verified."
 
     print_H3 "Checking internet connection..."
     if ! ping -c 1 -W 5 8.8.8.8 &>/dev/null && ! ping -c 1 -W 5 1.1.1.1 &>/dev/null; then
         fail "No internet connection detected before NixOS install."
     fi
     print_success "Internet connection verified."
-
-    print_attention "Installation output will be shown below."
 
     print_H3 "Running nixos-install command..."
     nixos-install --show-trace --root /mnt --flake "$flake_path"

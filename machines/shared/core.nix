@@ -1,29 +1,23 @@
 { config, pkgs, ... }:
 
 {
-  
   fileSystems = {
-
     "/home" = {
-      device = "/dev/mapper/root"; 
       fsType = "btrfs";
       options = [ "subvol=@home" "compress=zstd" "noatime" "space_cache=v2" "autodefrag" ];
     };
 
     "/nix" = {
-      device = "/dev/mapper/root"; 
       fsType = "btrfs";
       options = [ "subvol=@nix" "compress=zstd" "noatime" "nodev" "space_cache=v2" ]; # nodev is good practice for /nix
     };
 
     "/.snapshots" = {
-      device = "/dev/mapper/root";
       fsType = "btrfs";
       options = [ "subvol=@snapshots" "compress=zstd" "noatime" "space_cache=v2" ];
     };
 
     "/.swap" = {
-      device = "/dev/mapper/root"; 
       fsType = "btrfs";
       options = [ "subvol=@swap" "compress=zstd" "noatime" "space_cache=v2" ];
     };

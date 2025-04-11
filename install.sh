@@ -71,7 +71,7 @@ print_error() {
 
 # end of successful main function
 print_finish() {
-    echo -e "\n${G}(✓✓) $1${N}"
+    echo -e "\n${G}(+++)${N} $1"
 }
 
 print_faint() {
@@ -97,7 +97,7 @@ print_attention() {
 
 # end of a step
 print_success() {
-    echo -e "${G}(✓)${N} $1"
+    echo -e "${G}(+)${N} $1"
 }
 
 ## single variable prints ------------------------------------------------------

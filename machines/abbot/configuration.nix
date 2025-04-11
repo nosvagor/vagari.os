@@ -1,33 +1,35 @@
-#  █████╗ ██████╗ ██████╗  ██████╗ ████████╗
-# ██╔══██╗██╔══██╗██╔══██╗██╔═══██╗╚══██╔══╝
-# ███████║██████╔╝██████╔╝██║   ██║   ██║   
-# ██╔══██║██╔══██╗██╔══██╗██║   ██║   ██║   
-# ██║  ██║██████╔╝██████╔╝╚██████╔╝   ██║   
-# ╚═╝  ╚═╝╚═════╝ ╚═════╝  ╚═════╝    ╚═╝   
-# Portable AMD NUC development machine, focused on development.
-
-{ config, pkgs, machineName, ... }:
+{ config, pkgs, inputs, ... }:
 
 {
   imports = [
-    ./hardware-configuration.nix     # Generated hardware config
-    ../shared/core.nix               # Shared core system settings
-    ../shared/fonts.nix              # System-wide fonts
-    ../shared/packages/base.nix      # Base packages
-    ../shared/packages/build.nix     # Development tools
+    ./hardware-configuration.nix
+    ../shared/core.nix
+    ../shared/packages.nix
   ];
 
-  # AMD-specific optimizations
-  hardware.cpu.amd.updateMicrocode = true;
-  hardware.opengl.extraPackages = with pkgs; [
-    rocm-opencl-icd      
-    rocm-opencl-runtime 
-  ];
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
 
-  boot.initrd.luks.devices = {
-    root = {
-      device = "/dev/disk/by-uuid/YOUR-UUID"; # <-- Actual placeholder
-      preLVM = true;
-    };
+  boot.initrd.luks.devices."root" = {
+    device = "/dev/disk/by-uuid/YOUR-UUID";
+    allowDiscards = true;
   };
-} 
+
+  networking.hostName = "abbot";
+  networking.networkmanager.enable = true;
+
+  users.users.nosvagor = {
+    isNormalUser = true;
+    description = "nosvagor";
+    extraGroups = [ "networkmanager" "wheel" ]; 
+    shell = pkgs.zsh; 
+  };
+
+  programs.zsh.enable = true;
+
+  security.sudo.enable = true;
+  security.sudo.wheelNeedsPassword = true; 
+
+  system.stateVersion = "24.05"; 
+
+}

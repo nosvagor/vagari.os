@@ -1,4 +1,0 @@
-# nvim
-
-
-# text editor 

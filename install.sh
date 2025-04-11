@@ -181,6 +181,13 @@ script_start() {
     print_H3 "Target Username: $(print_tip "$USERNAME")"
 }
 
+unmount() {
+    print_H2 "Attempting initial cleanup (in case of previous failure)..."
+    umount -R /mnt 2>/dev/null || print_faint "Initial unmount of /mnt failed (likely already unmounted)."
+    cryptsetup luksClose /dev/mapper/root 2>/dev/null || print_faint "Initial LUKS close failed (likely already closed)."
+    print_success "Initial cleanup attempt finished."
+}
+
 post_install_instructions() {
     print_H1 "Post-Installation Instructions"
 
@@ -548,6 +555,7 @@ main() {
     check_root
     set_partitions 
 
+    unmount
     partition_disk
     setup_encryption
     format_filesystems

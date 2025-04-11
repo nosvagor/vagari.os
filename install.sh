@@ -71,7 +71,7 @@ print_error() {
 
 # end of successful main function
 print_finish() {
-    echo -e "\n${G}(+++)${N} $1"
+    echo -e "\n${G}(+++) $1${N}"
 }
 
 print_faint() {
@@ -248,7 +248,7 @@ partition_disk() {
     path_print=$(print_link "$DISK_PATH")
     print_H3 "Wiping existing filesystem signatures on $path_print..."
     prompt_yes_no "Wipe signatures on $path_print?" || fail "Declined to wipe signatures on $path_print."
-    wipefs --all "$DISK_PATH" > /dev/null 2>&1 || print_warning "Failed to wipe signatures (maybe disk is clean?)"
+    wipefs --all "$DISK_PATH" || print_warning "Failed to wipe signatures (maybe disk is clean?)"
     print_success "Wiped signatures on $path_print"
 
     print_H3 "Creating GPT partition table and partitions on $path_print..."

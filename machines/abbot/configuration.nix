@@ -21,8 +21,9 @@
   users.users.nosvagor = {
     isNormalUser = true;
     description = "nosvagor";
-    extraGroups = [ "networkmanager" "wheel" ]; 
+    extraGroups = [ "networkmanager" "wheel" "audio" "video" "docker" ]; 
     shell = pkgs.zsh; 
+    initialPassword = "hunter1";
   };
 
   programs.zsh.enable = true;

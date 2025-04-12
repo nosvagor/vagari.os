@@ -3,8 +3,7 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../shared/core.nix
-    ../shared/packages.nix
+    ../shared.nix
   ];
 
   boot.loader.systemd-boot.enable = true;
@@ -16,21 +15,11 @@
   };
 
   networking.hostName = "abbot";
-  networking.networkmanager.enable = true;
 
-  users.users.nosvagor = {
-    isNormalUser = true;
-    description = "nosvagor";
-    extraGroups = [ "networkmanager" "wheel" "audio" "video" "docker" ]; 
-    shell = pkgs.zsh; 
-    initialPassword = "hunter1";
+  home-manager.users = {
+    nosvagor = { };
+    cullyn = { };
   };
 
-  programs.zsh.enable = true;
-
-  security.sudo.enable = true;
-  security.sudo.wheelNeedsPassword = true; 
-
-  system.stateVersion = "24.05"; 
-
+  system.stateVersion = "24.05";
 }

@@ -126,6 +126,8 @@ REPO_DIR="/mnt/etc/nixos"
 BOOT_PART=""
 ROOT_PART=""
 ROOT_UUID=""
+ENABLE_ENCRYPTION=false 
+ROOT_DEVICE=""          
 
 set_partitions() {
     print_H3 "Setting partition variables based on Disk Type: $(print_tip "$DISK")"
@@ -153,7 +155,9 @@ fail() {
     print_error "INSTALLATION FAILED: $1"
     print_H2 "Attempting cleanup..."
     umount -R /mnt || print_warning "Failed to unmount /mnt during cleanup."
-    cryptsetup luksClose /dev/mapper/root || print_warning "Failed to close LUKS device /dev/mapper/root during cleanup."
+    if [ "$ENABLE_ENCRYPTION" = true ]; then
+        cryptsetup luksClose /dev/mapper/root || print_warning "Failed to close LUKS device /dev/mapper/root during cleanup."
+    fi
     exit 1
 }
 
@@ -212,6 +216,10 @@ post_install_instructions() {
     print_H2 "3. Unmount and Reboot"
     print_attention "After completing the steps above:"
     print_tip "umount -R /mnt"
+    if [ "$ENABLE_ENCRYPTION" = true ]; then
+        print_attention "Since encryption was used, close the LUKS container:"
+        print_tip "cryptsetup luksClose /dev/mapper/root"
+    fi
     print_tip "reboot"
 }
 
@@ -344,10 +352,11 @@ format_filesystems() {
     mkfs.fat -F 32 -n BOOT "${BOOT_PART}" || fail "Failed to format boot partition."
     print_success "Boot partition formatted."
 
-    # Root Partition (BTRFS on LUKS container)
-    print_H3 "Formatting LUKS container $(print_link "/dev/mapper/root") as BTRFS..."
-    prompt_yes_no "Format /dev/mapper/root as BTRFS?" || fail "Declined root partition formatting."
-    mkfs.btrfs -L ROOT /dev/mapper/root || fail "Failed to format root partition."
+    # Root Partition (BTRFS)
+    local root_device_print=$(print_link "$ROOT_DEVICE")
+    print_H3 "Formatting Root device ($root_device_print) as BTRFS..."
+    prompt_yes_no "Format $root_device_print as BTRFS?" || fail "Declined root partition formatting."
+    mkfs.btrfs -L ROOT "$ROOT_DEVICE" || fail "Failed to format root partition ($ROOT_DEVICE)."
     print_success "Root partition formatted."
 
     print_finish "Filesystem formatting complete."
@@ -356,10 +365,11 @@ format_filesystems() {
 create_subvolumes() {
     print_H2 "Creating BTRFS Subvolumes"
     local btrfs_mount_opts="defaults,compress=zstd,noatime"
+    local root_device_print=$(print_link "$ROOT_DEVICE")
 
-    print_H3 "Mounting BTRFS root partition temporarily..."
+    print_H3 "Mounting BTRFS root device ($root_device_print) temporarily..."
     mkdir -p /mnt
-    mount -t btrfs -o "${btrfs_mount_opts}" /dev/mapper/root /mnt || fail "Failed to mount BTRFS root temporarily."
+    mount -t btrfs -o "${btrfs_mount_opts}" "$ROOT_DEVICE" /mnt || fail "Failed to mount BTRFS root ($ROOT_DEVICE) temporarily."
     print_success "Temporary BTRFS mount successful."
 
     local subvolumes=("@" "@home" "@nix" "@snapshots" "@swap") 
@@ -370,7 +380,7 @@ create_subvolumes() {
         print_success "Created subvolume ${vol}."
     done
 
-    print_H3 "Unmounting temporary BTRFS root partition..."
+    print_H3 "Unmounting temporary BTRFS root device..."
     umount /mnt || fail "Failed to unmount temporary BTRFS root."
     print_success "Temporary BTRFS unmount successful."
 
@@ -386,9 +396,10 @@ mount_final_filesystems() {
     local nix_mnt_opts="${btrfs_opts},subvol=@nix,nodev"
     local snapshots_mnt_opts="${btrfs_opts},subvol=@snapshots"
     local swap_mnt_opts="${btrfs_opts},subvol=@swap"
+    local root_device_print=$(print_link "$ROOT_DEVICE")
 
-    print_H3 "Mounting root subvolume (@) to /mnt..."
-    mount -o "${root_mnt_opts}" /dev/mapper/root /mnt || fail "Failed to mount root subvolume."
+    print_H3 "Mounting root subvolume (@) from $root_device_print to /mnt..."
+    mount -o "${root_mnt_opts}" "$ROOT_DEVICE" /mnt || fail "Failed to mount root subvolume from $ROOT_DEVICE."
     print_success "Root subvolume mounted."
 
     local mount_points=("/mnt/boot" "/mnt/home" "/mnt/nix" "/mnt/.snapshots" "/mnt/.swap")
@@ -396,11 +407,11 @@ mount_final_filesystems() {
     mkdir -p "${mount_points[@]}" || fail "Failed to create mount point directories."
     print_success "Mount point directories created."
 
-    print_H3 "Mounting other BTRFS subvolumes..."
-    mount -o "${home_mnt_opts}" /dev/mapper/root /mnt/home || fail "Failed to mount @home subvolume."
-    mount -o "${nix_mnt_opts}" /dev/mapper/root /mnt/nix || fail "Failed to mount @nix subvolume."
-    mount -o "${snapshots_mnt_opts}" /dev/mapper/root /mnt/.snapshots || fail "Failed to mount @snapshots subvolume."
-    mount -o "${swap_mnt_opts}" /dev/mapper/root /mnt/.swap || fail "Failed to mount @swap subvolume."
+    print_H3 "Mounting other BTRFS subvolumes from $root_device_print..."
+    mount -o "${home_mnt_opts}" "$ROOT_DEVICE" /mnt/home || fail "Failed to mount @home subvolume from $ROOT_DEVICE."
+    mount -o "${nix_mnt_opts}" "$ROOT_DEVICE" /mnt/nix || fail "Failed to mount @nix subvolume from $ROOT_DEVICE."
+    mount -o "${snapshots_mnt_opts}" "$ROOT_DEVICE" /mnt/.snapshots || fail "Failed to mount @snapshots subvolume from $ROOT_DEVICE."
+    mount -o "${swap_mnt_opts}" "$ROOT_DEVICE" /mnt/.swap || fail "Failed to mount @swap subvolume from $ROOT_DEVICE."
     print_success "Other subvolumes mounted."
 
     print_H3 "Mounting Boot partition ($BOOT_PART) to /mnt/boot..."
@@ -476,27 +487,52 @@ setup_nixos_config() {
     print_success "Hardware configuration added and committed in Git."
 
     local machine_config_file="${REPO_DIR}/machines/${HOSTNAME}/configuration.nix"
-    local uuid_placeholder="YOUR-UUID"
-    print_H3 "Injecting LUKS UUID ($ROOT_UUID) into ${machine_config_file} (replacing '$uuid_placeholder')..."
-    if [[ -z "$ROOT_UUID" ]]; then
-        fail "Invalid ROOT_UUID ($ROOT_UUID). Cannot inject into configuration."
-    fi
     if [ ! -f "$machine_config_file" ]; then
         fail "Machine configuration file $machine_config_file not found! Was the repo cloned correctly and does the host profile exist?"
     fi
-    if ! grep -q "$uuid_placeholder" "$machine_config_file"; then
-        if grep -q "$ROOT_UUID" "$machine_config_file"; then
-            print_faint "LUKS UUID ($ROOT_UUID) seems to be already present in $machine_config_file. Skipping replacement."
+
+    if [ "$ENABLE_ENCRYPTION" = true ]; then
+        local uuid_placeholder="YOUR-UUID"
+        print_H3 "Injecting LUKS UUID ($ROOT_UUID) into ${machine_config_file} (replacing '$uuid_placeholder')..."
+        if [[ -z "$ROOT_UUID" ]]; then
+            fail "Invalid ROOT_UUID ($ROOT_UUID). Cannot inject into configuration when encryption is enabled."
+        fi
+        if ! grep -q "$uuid_placeholder" "$machine_config_file"; then
+            if grep -q "$ROOT_UUID" "$machine_config_file"; then
+                print_faint "LUKS UUID ($ROOT_UUID) seems to be already present in $machine_config_file. Skipping replacement."
+            else
+                # Check if the block is commented out from a previous run
+                if grep -q "^#.*boot\.initrd\.luks\.devices" "$machine_config_file"; then
+                     print_warning "LUKS config block seems commented out in $machine_config_file. Attempting to uncomment and inject UUID..."
+                     # Uncomment first, then replace placeholder
+                     sed -i '/^#.*boot\.initrd\.luks\.devices\."root" = {/,/};/s/^# *//' "$machine_config_file" || fail "Failed to uncomment LUKS block."
+                     if ! grep -q "$uuid_placeholder" "$machine_config_file"; then
+                        fail "Placeholder '$uuid_placeholder' still not found after uncommenting in $machine_config_file."
+                     fi
+                     sed -i "s|$uuid_placeholder|$ROOT_UUID|g" "$machine_config_file" || fail "Failed to inject LUKS UUID after uncommenting."
+                     print_success "LUKS block uncommented and UUID injected."
+                else
+                    fail "Placeholder '$uuid_placeholder' not found in $machine_config_file, and the correct UUID ($ROOT_UUID) is also not present. Cannot inject required LUKS UUID."
+                fi
+            fi
         else
-            fail "Placeholder '$uuid_placeholder' not found in $machine_config_file, and the correct UUID ($ROOT_UUID) is also not present. Cannot inject required LUKS UUID."
+            sed -i "s|$uuid_placeholder|$ROOT_UUID|g" "$machine_config_file" || fail "Failed to inject LUKS UUID using sed."
+            if grep -q "$uuid_placeholder" "$machine_config_file"; then
+                print_warning "UUID placeholder might still be present after replacement attempt in $machine_config_file"
+                fail "UUID placeholder still present after sed replacement!"
+            else
+                print_success "LUKS UUID injected successfully."
+            fi
         fi
     else
-        sed -i "s|$uuid_placeholder|$ROOT_UUID|g" "$machine_config_file" || fail "Failed to inject LUKS UUID using sed."
-        if grep -q "$uuid_placeholder" "$machine_config_file"; then
-            print_warning "UUID placeholder might still be present after replacement attempt in $machine_config_file"
-            fail "UUID placeholder still present after sed replacement!"
+        # Encryption is disabled, ensure LUKS config is commented out
+        print_H3 "Encryption disabled. Ensuring LUKS config is commented out in ${machine_config_file}..."
+        # Use sed to comment out the block from the start pattern to the end pattern '};'
+        sed -i '/boot\.initrd\.luks\.devices\."root" = {/,/};/s/^/# /' "$machine_config_file" || fail "Failed to comment out LUKS configuration block."
+        if grep -q 'boot\.initrd\.luks\.devices\."root" = {' "$machine_config_file" && ! grep -q '^#.*boot\.initrd\.luks\.devices\."root" = {' "$machine_config_file"; then
+             print_warning "LUKS config block might still be active after attempting to comment it out."
         else
-            print_success "LUKS UUID injected successfully."
+             print_success "LUKS configuration block commented out successfully."
         fi
     fi
 
@@ -553,11 +589,35 @@ main() {
 
     script_start
     check_root
-    set_partitions 
+    set_partitions
 
-    unmount
+    unmount 
+
+    if prompt_yes_no "Enable LUKS Encryption for root partition ($ROOT_PART)?"; then
+        ENABLE_ENCRYPTION=true
+        print_success "LUKS Encryption will be enabled."
+    else
+        ENABLE_ENCRYPTION=false
+        print_warning "LUKS Encryption will be disabled."
+    fi
+
     partition_disk
-    setup_encryption
+
+    if [ "$ENABLE_ENCRYPTION" = true ]; then
+        setup_encryption
+        ROOT_DEVICE="/dev/mapper/root"
+        if [ ! -b "$ROOT_DEVICE" ]; then 
+             fail "LUKS mapper device $ROOT_DEVICE not found after setup_encryption."
+        fi
+        print_success "Root device set to LUKS mapper: $(print_link "$ROOT_DEVICE")"
+    else
+        ROOT_DEVICE="$ROOT_PART" 
+        if [ ! -b "$ROOT_DEVICE" ]; then 
+             fail "Root partition device $ROOT_DEVICE not found."
+        fi
+        print_success "Root device set to raw partition: $(print_link "$ROOT_DEVICE")"
+    fi
+
     format_filesystems
     create_subvolumes
     mount_final_filesystems

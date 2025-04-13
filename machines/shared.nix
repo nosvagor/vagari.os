@@ -16,7 +16,7 @@
         extraGroups = [ "wheel" "networkmanager" "audio" "video" "docker" ];
         shell = pkgs.zsh; 
         initialPassword = "hunter1"; 
-      }
+      };
     };
   };
   security.sudo.enable = true;

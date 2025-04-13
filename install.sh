@@ -4,7 +4,8 @@
 # vagari.os Installation Script (MINIMAL)
 # Repository: https://github.com/nosvagor/vagari.os
 # License: The Unlicense
-VERSION="0.1.0-minimal"
+VERSION="0.1.0"
+BRANCH="home-manager"
 
 # Description:
 # This script prepares a target disk and bootstraps a NixOS installation
@@ -87,7 +88,7 @@ print_H3() {
 
 # for inputs
 print_question() {
-    echo -e "${M}(?)${N} $1"
+    echo -e "\n${M}(?) $1${N}"
 }
 
 # for warnings / notifications
@@ -178,7 +179,7 @@ script_start() {
     echo -e "         →:.\:: $(print_tip "$REPO_URL")${B} :::::: →"
     echo '        ::::.\::::::::.\::::::::.\::::::::.\::::::::.\:::::'
     echo '       →  →   `--'\''  →   `.-'\''  →   `--'\''  →   `--'\''  →   `--'\'' →'
-    print_H1 "Minimal Installation Script $(print_link "v$VERSION")"
+    print_H1 "Installation Script $(print_link "v$VERSION-$BRANCH")"
     print_attention "Using Hardcoded Settings:"
     print_H3 "Target Disk: $(print_tip "$DISK_PATH")"
     print_H3 "Target Hostname: $(print_tip "$HOSTNAME")"
@@ -195,25 +196,28 @@ unmount() {
 post_install_instructions() {
     print_H1 "Post-Installation Instructions"
 
-    print_H2 "1. Set Root Password (Optional but Recommended)"
-    print_attention "Enter the installed system environment:"
-    print_link "nixos-enter --root /mnt"
-    print_attention "Inside the environment, set the root password:"
-    print_tip "passwd root"
+    # print_H2 "2. Place SOPS Key (Required for Secrets)"
+    # print_attention "Ensure the system is still mounted at /mnt."
+    # print_attention "Retrieve your SOPS key (e.g., using $(print_tip "bw") if installed) and place it at:"
+    # print_tip "/mnt/etc/sops/key.txt"
+    # print_attention "Example using Bitwarden CLI (run this *outside* nixos-enter):"
+    # print_tip "bw get item sops-key --raw > /mnt/etc/sops/key.txt"
+    # print_attention "Set correct permissions (inside nixos-enter):"
+    # print_tip "nixos-enter --root /mnt -c 'chmod 600 /etc/sops/key.txt'"
+    # echo
+
+    print_H2 "1. Set User Passwords"
+    print_attention "After installation, you need to set passwords for the created users."
+    print_attention "From the installer environment (before unmounting/rebooting), use nixos-enter:"
+    print_tip "nixos-enter --root /mnt"
+    print_attention "Once inside the chroot environment, set passwords using the 'passwd' command:"
+    print_tip "passwd nosvagor"
+    print_tip "passwd cullyn"
+    print_attention "Follow the prompts to set and confirm the password for each user."
     print_tip "exit"
     echo
 
-    print_H2 "2. Place SOPS Key (Required for Secrets)"
-    print_attention "Ensure the system is still mounted at /mnt."
-    print_attention "Retrieve your SOPS key (e.g., using $(print_tip "bw") if installed) and place it at:"
-    print_tip "/mnt/etc/sops/key.txt"
-    print_attention "Example using Bitwarden CLI (run this *outside* nixos-enter):"
-    print_tip "bw get item sops-key --raw > /mnt/etc/sops/key.txt"
-    print_attention "Set correct permissions (inside nixos-enter):"
-    print_tip "nixos-enter --root /mnt -c 'chmod 600 /etc/sops/key.txt'"
-    echo
-
-    print_H2 "3. Unmount and Reboot"
+    print_H2 "2. Unmount and Reboot"
     print_attention "After completing the steps above:"
     print_tip "umount -R /mnt"
     if [ "$ENABLE_ENCRYPTION" = true ]; then
@@ -356,7 +360,7 @@ format_filesystems() {
     local root_device_print=$(print_link "$ROOT_DEVICE")
     print_H3 "Formatting Root device ($root_device_print) as BTRFS..."
     prompt_yes_no "Format $root_device_print as BTRFS?" || fail "Declined root partition formatting."
-    mkfs.btrfs -L ROOT "$ROOT_DEVICE" || fail "Failed to format root partition ($ROOT_DEVICE)."
+    mkfs.btrfs -fL ROOT "$ROOT_DEVICE" || fail "Failed to format root partition ($ROOT_DEVICE)."
     print_success "Root partition formatted."
 
     print_finish "Filesystem formatting complete."
@@ -465,9 +469,9 @@ setup_nixos_config() {
     git clone "$REPO_URL" "$REPO_DIR" || fail "Failed to clone repository into ${REPO_DIR}."
     print_success "Repository cloned."
 
-    print_H3 "Checking out the 'minimal' branch..."
-    git -C "$REPO_DIR" checkout minimal || fail "Failed to checkout 'minimal' branch."
-    print_success "Checked out 'minimal' branch."
+    print_H3 "Checking out the '$BRANCH' branch..."
+    git -C "$REPO_DIR" checkout "$BRANCH" || fail "Failed to checkout '$BRANCH' branch."
+    print_success "Checked out '$BRANCH' branch."
 
     print_H3 "Moving hardware config from temporary location to ${final_hardware_config_dest}..."
     mkdir -p "$(dirname "${final_hardware_config_dest}")" || fail "Failed to create machine directory in repo."

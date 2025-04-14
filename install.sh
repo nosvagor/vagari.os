@@ -5,7 +5,7 @@
 # Repository: https://github.com/nosvagor/vagari.os
 # License: The Unlicense
 VERSION="0.1.0"
-BRANCH="home-manager"
+BRANCH="hyprland"
 
 # Description:
 # This script prepares a target disk and bootstraps a NixOS installation
@@ -119,7 +119,7 @@ print_tip() {
 
 DISK="nvme0n1"                 
 DISK_PATH="/dev/${DISK}"
-HOSTNAME="abbot"                 
+HOSTNAME=""                 
 USERNAME="nosvagor"              
 REPO_URL="https://github.com/nosvagor/vagari.os"
 REPO_DIR="/mnt/etc/nixos"
@@ -219,6 +219,18 @@ post_install_instructions() {
 # === UTILITY FUNCTIONS ========================================================
 # ==============================================================================
 
+prompt_hostname() {
+ 
+    print_question "Enter the target hostname"
+    while [[ -z "$HOSTNAME" ]]; do
+        read -p "> " HOSTNAME
+        if [[ -z "$HOSTNAME" ]]; then
+            print_attention "Hostname cannot be empty. Please enter a valid hostname."
+        fi
+    done
+    print_success "Using hostname: $(print_tip "$HOSTNAME")"
+}
+
 prompt_yes_no() {
     local prompt_text
     prompt_text="$(print_question "$1 "$G$E"y"$N$G"es"$N"/"$R$E"n"$N$R"o"$N": ")"
@@ -267,6 +279,7 @@ partition_disk() {
     # Execute parted
     eval "$parted_command" || fail "Failed to partition $DISK_PATH using parted."
     print_success "Parted script executed."
+    sleep 2
 
     # Attempt to sync partition table and wait for udev
     print_H3 "Waiting for kernel to recognize new partitions..."
@@ -274,13 +287,12 @@ partition_disk() {
     partprobe "$DISK_PATH" 2>/dev/null
     blockdev --rereadpt "$DISK_PATH" 2>/dev/null
     sync
-    print_faint "Waiting up to 15 seconds for udev events to settle..."
-    if udevadm settle --timeout=15; then
+    print_faint "Waiting up to 5 seconds for udev events to settle..."
+    if udevadm settle --timeout=5; then
         print_faint "udev settled."
     else
-        print_warning "udevadm settle timed out after 15s. Partitions might not be ready yet."
+        print_warning "udevadm settle timed out after 5s. Partitions might not be ready yet."
     fi
-    # Add a small safety sleep just in case settle finishes slightly too early
     sleep 1
 
     # Verify partitions were created using the full path
@@ -580,6 +592,7 @@ main() {
     trap 'fail "Installation interrupted by user."' INT TERM
 
     script_start
+    prompt_hostname
     check_root
     set_partitions
 

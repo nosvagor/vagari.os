@@ -37,7 +37,8 @@
     in
     {
       nixosConfigurations = {
-        abbot = nixpkgs.lib.nixosSystem (mkSystem "abbot" "aarch64-linux");
+        abbot = nixpkgs.lib.nixosSystem (mkSystem "abbot" "x86_64-linux");
+        mac = nixpkgs.lib.nixosSystem (mkSystem "mac" "aarch64-linux");
       };
     };
 } 

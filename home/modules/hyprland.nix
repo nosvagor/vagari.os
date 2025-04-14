@@ -2,21 +2,32 @@
 {
   home.packages = with pkgs; [
     firefox
+    kitty
+    ghostty
+    alacritty
+    xterm
+    urxvt
   ];
+
+  programs.kitty = {
+    enable = true;
+    settings = {
+      backend = "software";
+    };
+  };
+
 
   wayland.windowManager.hyprland = {
     enable = true;
 
     settings = {
-      "$mod" = "SUPER"; 
+      "$mod" = "ALT"; 
+
+      exec-once = [ "dbus-update-activation-environment --systemd --all" ];
 
       input = {
         kb_layout = "us"; 
         follow_mouse = 1;
-      };
-
-      debug = {
-        disable_logs = false;
       };
 
       general = {
@@ -28,7 +39,11 @@
       bind = [
         "$mod, x, killactive,"
         "$mod, Return, exec, kitty"
-        "$mod, F, exec, firefox"
+        "$mod, f, exec, ghostty"
+        "$mod, g, exec, firefox"
+        "$mod, d, exec, alacritty"
+        "$mod, t, exec, xterm"
+        "$mod, u, exec, urxvt"
       ];
     };
   };

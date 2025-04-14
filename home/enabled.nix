@@ -5,7 +5,6 @@
     ./modules/zsh.nix
     ./modules/env.nix
     ./modules/hyprland.nix
-    ./modules/kitty.nix
   ];
   home.stateVersion = "24.05";
 }

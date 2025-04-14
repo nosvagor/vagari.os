@@ -4,6 +4,7 @@
   imports = [
     ./hardware-configuration.nix 
     ../shared.nix
+    ../sddm.nix
   ];
 
   boot.loader.systemd-boot.enable = true;
@@ -13,6 +14,8 @@
     nosvagor = { };
     cullyn = { };
   };
+
+  hardware.graphics.enable = true;
 
   system.stateVersion = "24.05"; 
 }

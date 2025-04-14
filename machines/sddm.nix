@@ -23,5 +23,6 @@
     xwayland.enable = true;
   };
 
+
   hardware.graphics.enable = true;
 }

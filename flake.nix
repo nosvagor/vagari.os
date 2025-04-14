@@ -7,6 +7,9 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    hyprland = {
+      url = "github:hyprwm/Hyprland";
+    };
   };
 
   outputs = { self, nixpkgs, home-manager, ... }@inputs:
@@ -17,6 +20,7 @@
         modules = [
           inputs.home-manager.nixosModules.home-manager
           ({ config, pkgs, ... }: {
+
             home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
@@ -28,7 +32,6 @@
             };
           })
           ./machines/${hostname}/configuration.nix
-          ./machines/${hostname}/hardware-configuration.nix
         ];
       };
     in

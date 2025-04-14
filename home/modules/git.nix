@@ -5,10 +5,10 @@
       init.defaultBranch = "master";
       core.editor = "nvim"; 
       pull.rebase = true;
-      commit.gpgsign = true;
-      gpg.format = "ssh";
     };
     aliases = {
+      spp = "git stash; git pull; git stash pop";
+
       cm = "commit -m";
 
       br = "branch --sort=-committerdate"; 

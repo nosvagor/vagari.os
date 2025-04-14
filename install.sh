@@ -196,29 +196,17 @@ unmount() {
 post_install_instructions() {
     print_H1 "Post-Installation Instructions"
 
-    # print_H2 "2. Place SOPS Key (Required for Secrets)"
-    # print_attention "Ensure the system is still mounted at /mnt."
-    # print_attention "Retrieve your SOPS key (e.g., using $(print_tip "bw") if installed) and place it at:"
-    # print_tip "/mnt/etc/sops/key.txt"
-    # print_attention "Example using Bitwarden CLI (run this *outside* nixos-enter):"
-    # print_tip "bw get item sops-key --raw > /mnt/etc/sops/key.txt"
-    # print_attention "Set correct permissions (inside nixos-enter):"
-    # print_tip "nixos-enter --root /mnt -c 'chmod 600 /etc/sops/key.txt'"
-    # echo
-
     print_H2 "1. Set User Passwords"
-    print_attention "After installation, you need to set passwords for the created users."
     print_attention "From the installer environment (before unmounting/rebooting), use nixos-enter:"
     print_tip "nixos-enter --root /mnt"
     print_attention "Once inside the chroot environment, set passwords using the 'passwd' command:"
     print_tip "passwd nosvagor"
     print_tip "passwd cullyn"
     print_attention "Follow the prompts to set and confirm the password for each user."
-    print_tip "exit"
-    echo
+    print_tip "exit" 
 
     print_H2 "2. Unmount and Reboot"
-    print_attention "After completing the steps above:"
+    print_attention "After setting passwords:"
     print_tip "umount -R /mnt"
     if [ "$ENABLE_ENCRYPTION" = true ]; then
         print_attention "Since encryption was used, close the LUKS container:"

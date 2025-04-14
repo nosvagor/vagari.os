@@ -5,14 +5,14 @@
     users = {
       nosvagor = {
         isNormalUser = true;
-        description = "open source developer";
+        description = "nosvagor";
         extraGroups = [ "wheel" "networkmanager" "audio" "video" "docker" ];
         shell = pkgs.zsh; 
         initialPassword = "hunter1"; 
       };
       cullyn = {
         isNormalUser = true;
-        description = "software developer";
+        description = "cullyn";
         extraGroups = [ "wheel" "networkmanager" "audio" "video" "docker" ];
         shell = pkgs.zsh; 
         initialPassword = "hunter1"; 
@@ -55,8 +55,12 @@
 
   i18n.defaultLocale = "en_US.UTF-8";
 
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
-  nix.settings.auto-optimise-store = true;
+  nix.settings = {
+    experimental-features = [ "nix-command" "flakes" ];
+    auto-optimise-store = true;
+    substituters = [ "https://hyprland.cachix.org" ];
+    trusted-public-keys = [ "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc=" ];
+  };
 
   services.btrfs.autoScrub = {
     enable = true;

@@ -29,7 +29,6 @@ Thumbs.db
 *.key
 *.pem
 *.env
-hardware-configuration.nix
 
 # Logs
 *.log

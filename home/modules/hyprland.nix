@@ -1,7 +1,7 @@
 { pkgs, ... }:
 {
   home.packages = with pkgs; [
-    firefox-developer-edition
+    firefox-devedition-bin-unwrapped
     kitty
     dunst               # Notification daemon
     hyprpolkitagent     # Polkit agent for Hyprland

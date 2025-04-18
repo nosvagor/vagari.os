@@ -25,6 +25,8 @@
   programs.zsh.enable = true;
   networking.networkmanager.enable = true;
 
+  hardware.bluetooth.enable = true;
+
   swapDevices = [{
     device = "/.swap/swapfile";
     size = 4096; 

@@ -17,5 +17,10 @@
 
   hardware.graphics.enable = true;
 
+  environment.systemPackages = with pkgs; [
+    mesa
+    virglrenderer
+  ];
+
   system.stateVersion = "24.05"; 
 }

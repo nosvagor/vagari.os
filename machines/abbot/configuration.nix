@@ -10,10 +10,10 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  boot.initrd.luks.devices."root" = {
-    device = "/dev/disk/by-uuid/YOUR-UUID";
-    allowDiscards = true;
-  };
+  # boot.initrd.luks.devices."root" = {
+  #   device = "/dev/disk/by-uuid/YOUR-UUID";
+  #   allowDiscards = true;
+  # };
 
   networking.hostName = "abbot";
 

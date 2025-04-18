@@ -9,7 +9,7 @@
     hyprland-qt-support # Qt style for hypr* apps
     playerctl           # Media player controller
     grim                # Screenshot tool
-    wl-copy             # Clipboard tool
+    wl-clipboard        # Clipboard tool
     zathura             # PDF viewer
     wofi                # Application launcher
     wofi-emoji          # Emoji picker

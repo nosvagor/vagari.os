@@ -22,7 +22,6 @@
   security.sudo.enable = true;
   security.sudo.wheelNeedsPassword = false; 
 
-  sound.enable = true;
   hardware.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {

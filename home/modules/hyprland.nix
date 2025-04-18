@@ -186,7 +186,7 @@
 
 
       # https://wiki.hyprland.org/Plugins/Using-Plugins/
-      plugin = {}
+      plugin = {};
 
     }; 
   }; 

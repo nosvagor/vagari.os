@@ -22,6 +22,16 @@
   security.sudo.enable = true;
   security.sudo.wheelNeedsPassword = false; 
 
+  sound.enable = true;
+  hardware.pulseaudio.enable = false;
+  security.rtkit.enable = true;
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+  };
+
   programs.zsh.enable = true;
   networking.networkmanager.enable = true;
 
@@ -71,6 +81,8 @@
     ripgrep 
     neofetch
     vim
+    qt5.qtwayland 
+    qt6.qtwayland
   ];
 
   nixpkgs.config.allowUnfree = true;
